@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <!-- Flutter cambia $FLUTTER_BASE_HREF por /marbel-cup/ al publicar -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Marbel Cup · IV Torneo Navideño</title>
+  <meta name="description" content="Calendario, resultados, clasificaciones y equipos de Marbel Football Cup. 26-27 de diciembre y 2-3 de enero en la Vega Baja (Alicante).">
+  <meta name="theme-color" content="#060A2B">
+
+  <!-- Icono -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Marbel Cup">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Tarjeta al compartir el enlace (WhatsApp, Instagram, Telegram...) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Marbel Cup">
+  <meta property="og:title" content="Marbel Football Cup · IV Torneo Navideño">
+  <meta property="og:description" content="26-27 dic y 2-3 ene · Vega Baja (Alicante) · Iniciación, Medio y Élite">
+  <meta property="og:url" content="https://sripoll14.github.io/marbel-cup/">
+  <meta property="og:image" content="https://sripoll14.github.io/marbel-cup/og/og-inicio.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="es_ES">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <style>
+    html, body { margin: 0; height: 100%; background: #060A2B; }
+
+    /* Avisos de instalación (Android e iPhone) */
+    .mc-inst { position: fixed; z-index: 9999; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+      max-width: 460px; margin: 0 auto; background: #0B1150; color: #fff; border: 2px solid #22D3EE;
+      border-radius: 20px; padding: 16px; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      box-shadow: 0 12px 40px rgba(0,0,0,.5); display: none; }
+    .mc-inst.ver { display: block; animation: mcSube .35s ease-out; }
+    @keyframes mcSube { from { transform: translateY(40px); opacity: 0 } to { transform: none; opacity: 1 } }
+    .mc-fila { display: flex; gap: 12px; align-items: center; }
+    .mc-fila img { width: 52px; height: 52px; border-radius: 12px; flex: none; }
+    .mc-tit { font-weight: 800; font-size: 17px; margin: 0 0 2px; }
+    .mc-sub { color: #AAB3E8; font-size: 14px; margin: 0; line-height: 1.35; }
+    .mc-botones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+    .mc-b { border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 800; font-size: 15px; cursor: pointer; min-height: 44px; }
+    .mc-b.cian { background: #22D3EE; color: #060A2B; }
+    .mc-b.no { background: transparent; color: #AAB3E8; border: 2px solid #2B35A6; }
+    .mc-pasos { margin: 12px 0 0; padding: 0; list-style: none; counter-reset: p; }
+    .mc-pasos li { counter-increment: p; display: flex; gap: 10px; align-items: center; padding: 8px 0; font-size: 15px; border-top: 1px solid #1E2672; }
+    .mc-pasos li::before { content: counter(p); flex: none; width: 26px; height: 26px; border-radius: 50%; background: #22D3EE;
+      color: #060A2B; font-weight: 800; display: grid; place-items: center; font-size: 14px; }
+    .mc-ico { display: inline-block; width: 20px; height: 20px; vertical-align: -4px; }
+    .mc-nota { margin: 10px 0 0; font-size: 13px; color: #FFE08A; background: #3A2A00; border-radius: 12px; padding: 8px 10px; line-height: 1.35; }
+  </style>
+</head>
+<body>
+  <!-- Android / Chrome: "Instala Marbel Cup" -->
+  <div class="mc-inst" id="mc-android" role="dialog" aria-label="Instalar la app">
+    <div class="mc-fila">
+      <img src="icons/Icon-192.png" alt="">
+      <div>
+        <p class="mc-tit">Instala Marbel Cup</p>
+        <p class="mc-sub">Resultados en directo y tu equipo a un toque, como una app más del móvil.</p>
+      </div>
+    </div>
+    <div class="mc-botones">
+      <button class="mc-b no" id="mc-a-no">Ahora no</button>
+      <button class="mc-b cian" id="mc-a-si">Instalar</button>
+    </div>
+  </div>
+
+  <!-- iPhone / iPad con Safari: pasos para añadir a la pantalla de inicio -->
+  <div class="mc-inst" id="mc-ios" role="dialog" aria-label="Añadir a la pantalla de inicio">
+    <div class="mc-fila">
+      <img src="icons/apple-touch-icon.png" alt="">
+      <div>
+        <p class="mc-tit">Ten Marbel Cup en tu iPhone</p>
+        <p class="mc-sub">Se instala desde Safari en 3 toques.</p>
+      </div>
+    </div>
+    <ol class="mc-pasos">
+      <li><span>Toca <b>Compartir</b>
+        <svg class="mc-ico" viewBox="0 0 24 24" fill="none" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+        abajo en la barra de Safari</span></li>
+      <li><span>Elige <b>Añadir a pantalla de inicio</b></span></li>
+      <li><span>Pulsa <b>Añadir</b> arriba a la derecha</span></li>
+    </ol>
+    <p class="mc-nota">Para recibir avisos en el iPhone hay que abrir Marbel Cup desde el icono de la pantalla de inicio (iOS 16.4 o posterior).</p>
+    <div class="mc-botones">
+      <button class="mc-b cian" id="mc-i-ok">Entendido, no volver a mostrar</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+      function guardar(k) { try { localStorage.setItem(k, '1'); } catch (e) {} }
+      var instalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      var gestion = location.hash.indexOf('/gestion') !== -1 || location.hash.indexOf('/recuperar') !== -1;
+      if (instalada || gestion) return;
+
+      // Android y Chrome de escritorio
+      var aplazado = null, a = document.getElementById('mc-android');
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        aplazado = e;
+        if (leer('mc_instalar_visto')) return;
+        setTimeout(function () { a.classList.add('ver'); }, 4000);
+      });
+      document.getElementById('mc-a-no').onclick = function () { a.classList.remove('ver'); guardar('mc_instalar_visto'); };
+      document.getElementById('mc-a-si').onclick = function () {
+        a.classList.remove('ver'); guardar('mc_instalar_visto');
+        if (aplazado) { aplazado.prompt(); aplazado = null; }
+      };
+      window.addEventListener('appinstalled', function () { a.classList.remove('ver'); guardar('mc_instalar_visto'); });
+
+      // iPhone / iPad (Safari, no hay aviso automático: se explican los pasos)
+      var ua = navigator.userAgent;
+      var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var safari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA/.test(ua);
+      var i = document.getElementById('mc-ios');
+      if (ios && safari && !leer('mc_ios_visto')) {
+        setTimeout(function () { i.classList.add('ver'); }, 5000);
+      }
+      document.getElementById('mc-i-ok').onclick = function () { i.classList.remove('ver'); guardar('mc_ios_visto'); };
+    })();
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

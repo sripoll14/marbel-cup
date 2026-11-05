@@ -1,0 +1,13 @@
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Sugerencias de rendimiento mínimas que solo llenan la lista de avisos.
+    prefer_const_constructors: false
+    prefer_const_literals_to_create_immutables: false

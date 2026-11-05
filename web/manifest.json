@@ -1,0 +1,19 @@
+{
+  "name": "Marbel Cup",
+  "short_name": "Marbel Cup",
+  "description": "Calendario, resultados y equipos de Marbel Football Cup.",
+  "lang": "es",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#060A2B",
+  "theme_color": "#060A2B",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/Icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/Icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/Icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
