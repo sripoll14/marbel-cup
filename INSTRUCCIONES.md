@@ -123,5 +123,5 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 
 ## Lo que queda para más adelante
 
-- **Notificaciones push con la app cerrada.** Necesitan conectar Firebase. Mientras tanto, los avisos de tus equipos salen dentro de la app, en Inicio y en "Para ti".
+- **Notificaciones push con la app cerrada:** se activan aparte. Los pasos están en `NOTIFICACIONES.md`.
 - **Textos legales.** Están publicados con los huecos [entre corchetes] marcados. Rellénalos en `web/legal/*.html` (titular, NIF, domicilio, email de privacidad, plazos) y que los revise una persona experta antes del torneo.

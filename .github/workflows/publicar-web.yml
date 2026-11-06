@@ -36,6 +36,8 @@ jobs:
           --base-href "/${{ github.event.repository.name }}/"
           --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }}
           --dart-define=SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+          --dart-define=VAPID_PUBLIC_KEY=${{ vars.VAPID_PUBLIC_KEY }}
+          --pwa-strategy=none
 
       - uses: actions/configure-pages@v5
 

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/env.dart';
 import 'data/datos.dart';
 import 'data/favoritos.dart';
+import 'data/notificaciones.dart';
 import 'data/sesion.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
   await favoritos.iniciar();
   await sesion.iniciar();
   datos.iniciar(); // carga en segundo plano; las pantallas muestran "cargando"
+  if (Env.configurado) notificaciones.iniciar(); // notificaciones push (si estaban activadas)
   runApp(const MarbelCupApp());
 }
 

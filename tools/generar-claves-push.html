@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claves de notificaciones · Marbel Cup</title>
+<style>
+  body { margin: 0; background: #060A2B; color: #E6EAFF; font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 28px; margin: 0 0 8px; color: #fff; }
+  p { color: #AAB3E8; }
+  .caja { background: #0B1150; border: 1px solid #232C8A; border-radius: 16px; padding: 16px; margin: 16px 0; }
+  .caja h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 4px; color: #22D3EE; }
+  code { display: block; word-break: break-all; background: #060A2B; border-radius: 10px; padding: 12px; font-size: 14px; color: #fff; margin: 8px 0; }
+  button { border: 0; border-radius: 999px; padding: 10px 18px; font-weight: 800; cursor: pointer; background: #22D3EE; color: #060A2B; }
+  .aviso { background: #3A2A00; color: #FFE08A; border-radius: 12px; padding: 10px 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Claves de notificaciones</h1>
+  <p>Se generan aquí mismo, en tu ordenador: no se envían a ningún sitio. Hazlo <b>una sola vez</b>; si las cambias, todos los móviles tendrán que volver a activar las notificaciones.</p>
+
+  <div class="caja">
+    <h2>Clave pública · VAPID_PUBLIC_KEY</h2>
+    <p>Va en <b>env.json</b>, en la variable de <b>GitHub</b> y en los <b>Secrets</b> de Supabase.</p>
+    <code id="pub">Generando…</code>
+    <button onclick="copiar('pub', this)">Copiar</button>
+  </div>
+
+  <div class="caja">
+    <h2>Clave privada · VAPID_PRIVATE_KEY</h2>
+    <p>Va <b>solo</b> en los <b>Secrets</b> de Supabase. No la pongas en env.json, ni en GitHub, ni se la mandes a nadie.</p>
+    <code id="priv">Generando…</code>
+    <button onclick="copiar('priv', this)">Copiar</button>
+  </div>
+
+  <p class="aviso">Si cierras o recargas esta página salen claves nuevas. Copia las dos antes.</p>
+</main>
+<script>
+  const b64url = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  (async () => {
+    try {
+      const k = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+      document.getElementById('pub').textContent = b64url(await crypto.subtle.exportKey('raw', k.publicKey));
+      document.getElementById('priv').textContent = (await crypto.subtle.exportKey('jwk', k.privateKey)).d;
+    } catch (e) {
+      document.getElementById('pub').textContent = 'Este navegador no puede generar las claves. Ábrela con Chrome o Edge.';
+      document.getElementById('priv').textContent = '';
+    }
+  })();
+  function copiar(id, b) {
+    navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => { b.textContent = '¡Copiada!'; setTimeout(() => b.textContent = 'Copiar', 1500); });
+  }
+</script>
+</body>
+</html>

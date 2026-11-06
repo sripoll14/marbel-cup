@@ -11,6 +11,9 @@ class Env {
   static const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
+  /// Clave pública para las notificaciones push (la privada solo está en Supabase).
+  static const vapidPublica = String.fromEnvironment('VAPID_PUBLIC_KEY');
+
   static bool get configurado =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }

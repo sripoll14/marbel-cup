@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/datos.dart';
 import '../data/favoritos.dart';
+import '../data/notificaciones.dart';
 import '../data/modelos.dart';
 import '../theme/app_theme.dart';
 import '../widgets/comunes.dart';
@@ -145,9 +146,10 @@ class _AvisosScreenState extends State<AvisosScreen> {
 
           final preferencias = Tarjeta(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const _TarjetaPush(),
               Text('QUÉ QUIERO RECIBIR', style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
               const SizedBox(height: 4),
-              const Text('Se guarda en este dispositivo.', style: TextStyle(color: MarbelColors.apagado, fontSize: 13)),
+              const Text('Se guarda en este dispositivo y vale para la app y para las notificaciones.', style: TextStyle(color: MarbelColors.apagado, fontSize: 13)),
               const SizedBox(height: 8),
               for (var i = 0; i < Favoritos.preferenciasTexto.length; i++)
                 SwitchListTile(
@@ -189,6 +191,88 @@ class _AvisosScreenState extends State<AvisosScreen> {
           ]);
         },
       ),
+    );
+  }
+}
+
+/// Activar o desactivar las notificaciones con la app cerrada.
+class _TarjetaPush extends StatelessWidget {
+  const _TarjetaPush();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: notificaciones,
+      builder: (context, _) {
+        final n = notificaciones;
+        if (n.estado == EstadoPush.sinConfigurar) return const SizedBox.shrink();
+
+        Widget cuerpo;
+        switch (n.estado) {
+          case EstadoPush.activado:
+            cuerpo = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Row(children: [
+                Icon(Icons.notifications_active_rounded, color: MarbelColors.elite),
+                SizedBox(width: 8),
+                Expanded(child: Text('Activadas en este móvil', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))),
+              ]),
+              const SizedBox(height: 4),
+              Text(
+                favoritos.equipos.isEmpty
+                    ? 'Te llegarán los avisos generales. Sigue a tus equipos con ★ para recibir también sus partidos, goles y resultados.'
+                    : 'Te llegarán aunque tengas la app cerrada, según lo que marques abajo.',
+                style: const TextStyle(color: MarbelColors.texto2, height: 1.35),
+              ),
+              TextButton(
+                onPressed: n.trabajando
+                    ? null
+                    : () async {
+                        final error = await n.desactivar();
+                        if (error != null && context.mounted) avisar(context, error, error: true);
+                      },
+                child: const Text('Desactivar'),
+              ),
+            ]);
+          case EstadoPush.desactivado:
+            cuerpo = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              const Text('Goles, resultados, cambios de campo y avisos de la organización, aunque tengas la app cerrada.',
+                  style: TextStyle(color: MarbelColors.texto2, height: 1.35)),
+              const SizedBox(height: 10),
+              BotonCian('Activar notificaciones', icono: Icons.notifications_rounded, cargando: n.trabajando, onTap: () async {
+                final error = await n.activar(); // pide el permiso en este mismo toque
+                if (!context.mounted) return;
+                avisar(context, error ?? '¡Listo! Te avisaremos.', error: error != null);
+              }),
+            ]);
+          case EstadoPush.instalarPrimero:
+            cuerpo = const Text(
+              'En iPhone, primero instala la app: en Safari toca Compartir → «Añadir a pantalla de inicio». '
+              'Después ábrela desde el icono y vuelve aquí para activarlas (iOS 16.4 o posterior).',
+              style: TextStyle(color: MarbelColors.texto2, height: 1.35),
+            );
+          case EstadoPush.bloqueado:
+            cuerpo = const Text(
+              'Las tienes bloqueadas para esta web. Para activarlas, permite las notificaciones en los ajustes del navegador '
+              '(el candado junto a la dirección, o Ajustes → Notificaciones en el móvil) y vuelve a entrar.',
+              style: TextStyle(color: MarbelColors.texto2, height: 1.35),
+            );
+          case EstadoPush.noSoportado:
+          case EstadoPush.sinConfigurar:
+            cuerpo = const Text('Este navegador no permite notificaciones. Prueba con Chrome (Android) o instalando la app en el iPhone.',
+                style: TextStyle(color: MarbelColors.texto2, height: 1.35));
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('NOTIFICACIONES', style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
+            const SizedBox(height: 6),
+            cuerpo,
+            const SizedBox(height: 8),
+            const Divider(color: MarbelColors.borde),
+          ]),
+        );
+      },
     );
   }
 }
