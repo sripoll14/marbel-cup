@@ -111,12 +111,12 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 
 ## 9. Qué comprobar
 
-- [ ] Inicio: cuenta atrás, avisos, carrusel de fotos y mapa de sedes.
+- [Y] Inicio: cuenta atrás, avisos, carrusel de fotos y mapa de sedes.
 - [ ] Partidos: filtros por día y sede; un partido "En juego" aparece en Inicio al momento.
 - [ ] Equipos: seguir un equipo (☆), y su ficha con partidos y racha.
 - [ ] Estadísticas: goleadores como "Nombre I. · Equipo".
 - [ ] La Porra: crear cuenta, predecir, ver el ranking. **Autorrelleno de contraseñas:** al crear cuenta, el móvil debe ofrecer una contraseña segura y guardarla; al entrar, debe rellenarla sola; al cambiarla en "¿Has olvidado tu contraseña?", debe actualizar la guardada.
-- [ ] "Mantener sesión iniciada": si lo desmarcas, al cerrar y volver a abrir te pide entrar otra vez.
+- [Y] "Mantener sesión iniciada": si lo desmarcas, al cerrar y volver a abrir te pide entrar otra vez.
 - [ ] Recuperar contraseña: llega el email y el enlace abre "Elige una contraseña nueva".
 - [ ] Panel: cambiar un resultado en el ordenador y verlo cambiar en el móvil sin recargar.
 - [ ] Pie: los enlaces de Privacidad, Aviso legal y Cookies abren sus páginas.

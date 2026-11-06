@@ -15,7 +15,9 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- "black" y no "black-translucent": con la barra translúcida, en el iPhone instalado los toques
+       caían más abajo que los botones -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Marbel Cup">
   <link rel="manifest" href="manifest.json">
 
@@ -33,6 +35,8 @@
 
   <style>
     html, body { margin: 0; height: 100%; background: #060A2B; }
+    /* La página nunca se desplaza: así el sitio del toque coincide siempre con el botón (iPhone) */
+    html, body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; }
 
     /* Avisos de instalación (Android e iPhone) */
     .mc-inst { position: fixed; z-index: 9999; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
@@ -127,6 +131,15 @@
         setTimeout(function () { i.classList.add('ver'); }, 5000);
       }
       document.getElementById('mc-i-ok').onclick = function () { i.classList.remove('ver'); guardar('mc_ios_visto'); };
+    })();
+  </script>
+  <!-- iPhone: si Safari deja la página desplazada al abrir, los toques no coinciden con los botones -->
+  <script>
+    (function () {
+      function alinear() { if (window.scrollY || window.scrollX) window.scrollTo(0, 0); }
+      ['load', 'pageshow', 'orientationchange', 'resize'].forEach(function (e) { window.addEventListener(e, alinear); });
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', alinear);
+      setTimeout(alinear, 500);
     })();
   </script>
   <!-- Notificaciones push -->
