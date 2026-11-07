@@ -7,6 +7,7 @@ import '../data/modelos.dart';
 import '../theme/app_theme.dart';
 import '../widgets/comunes.dart';
 import '../widgets/marco_app.dart';
+import '../widgets/pedir_notificaciones.dart';
 
 class EquiposScreen extends StatefulWidget {
   const EquiposScreen({super.key});
@@ -238,7 +239,10 @@ class _TarjetaEquipo extends StatelessWidget {
           ),
           IconButton(
             tooltip: fav ? 'Dejar de seguir' : 'Seguir a ${e.nombre}',
-            onPressed: () => favoritos.alternar(e.id),
+            onPressed: () {
+              favoritos.alternar(e.id);
+              if (!fav) ofrecerNotificaciones(context, e.nombre);
+            },
             style: IconButton.styleFrom(
               backgroundColor: fav ? const Color(0xFF2A2500) : const Color(0xFF131B6B),
               minimumSize: const Size(44, 44),

@@ -5,3 +5,4 @@ String permiso() => 'unsupported';
 Future<String> activar(String clave) async => '';
 Future<String> actual() async => '';
 Future<String> desactivar() async => '';
+void mostrarInstalar() {}

@@ -80,5 +80,11 @@ window.marbelPush = (function () {
     }).catch(function () {});
   }
 
-  return { soportado, necesitaInstalar, permiso, activar, actual, desactivar };
+  // Abre la ventana con los pasos para instalar la app (está en index.html)
+  function mostrarInstalar() {
+    var e = document.getElementById('mc-ios');
+    if (e) e.classList.add('ver');
+  }
+
+  return { soportado, necesitaInstalar, permiso, activar, actual, desactivar, mostrarInstalar };
 })();
