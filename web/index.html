@@ -96,14 +96,13 @@
     <p class="mc-nota">Para recibir avisos en el iPhone hay que abrir Marbel Cup desde el icono de la pantalla de inicio (iOS 16.4 o posterior).</p>
     <div class="mc-botones">
       <button class="mc-b no" id="mc-i-copiar" style="display:none">Copiar enlace</button>
-      <button class="mc-b cian" id="mc-i-ok">Entendido, no volver a mostrar</button>
+      <button class="mc-b no" id="mc-i-ok">Ahora no</button>
     </div>
   </div>
 
   <script>
     (function () {
-      function leer(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-      function guardar(k) { try { localStorage.setItem(k, '1'); } catch (e) {} }
+      // Sale en cada visita mientras la app no esté instalada ("Ahora no" solo la cierra esta vez)
       var instalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
       var gestion = location.hash.indexOf('/gestion') !== -1 || location.hash.indexOf('/recuperar') !== -1;
       if (instalada || gestion) return;
@@ -113,15 +112,14 @@
       window.addEventListener('beforeinstallprompt', function (e) {
         e.preventDefault();
         aplazado = e;
-        if (leer('mc_instalar_visto')) return;
         setTimeout(function () { a.classList.add('ver'); }, 4000);
       });
-      document.getElementById('mc-a-no').onclick = function () { a.classList.remove('ver'); guardar('mc_instalar_visto'); };
+      document.getElementById('mc-a-no').onclick = function () { a.classList.remove('ver'); };
       document.getElementById('mc-a-si').onclick = function () {
-        a.classList.remove('ver'); guardar('mc_instalar_visto');
+        a.classList.remove('ver');
         if (aplazado) { aplazado.prompt(); aplazado = null; }
       };
-      window.addEventListener('appinstalled', function () { a.classList.remove('ver'); guardar('mc_instalar_visto'); });
+      window.addEventListener('appinstalled', function () { a.classList.remove('ver'); });
 
       // iPhone / iPad: no hay aviso automático, así que se explican los pasos según el navegador
       var ua = navigator.userAgent;
@@ -131,13 +129,11 @@
       function pasos(lista) {
         document.getElementById('mc-i-pasos').innerHTML = lista.map(function (t) { return '<li><span>' + t + '</span></li>'; }).join('');
       }
-      var clave = 'mc_ios_visto';
       var navegador = /CriOS/.test(ua) ? 'Chrome' : /EdgiOS/.test(ua) ? 'Edge' : /FxiOS/.test(ua) ? 'Firefox' : /OPiOS|OPT\//.test(ua) ? 'Opera' : null;
       var dentroDeApp = /GSA\/|FBAN|FBAV|Instagram|Line\/|Twitter|LinkedInApp|Snapchat|musical_ly|BytedanceWebview/.test(ua);
 
       if (dentroDeApp) {
         // App de Google, Instagram, Facebook...: desde ahí no se puede instalar
-        clave = 'mc_ios_app_visto';
         document.getElementById('mc-i-tit').textContent = 'Ábrela en Safari para instalarla';
         document.getElementById('mc-i-sub').textContent = 'Desde esta app no se puede añadir a la pantalla de inicio.';
         pasos([
@@ -163,10 +159,10 @@
         ]);
       }
 
-      if (ios && !leer(clave)) {
+      if (ios) {
         setTimeout(function () { i.classList.add('ver'); }, 5000);
       }
-      document.getElementById('mc-i-ok').onclick = function () { i.classList.remove('ver'); guardar(clave); };
+      document.getElementById('mc-i-ok').onclick = function () { i.classList.remove('ver'); };
       document.getElementById('mc-i-copiar').onclick = function () {
         var b = this, url = location.href.split('#')[0];
         function hecho() { b.textContent = '¡Copiado!'; setTimeout(function () { b.textContent = 'Copiar enlace'; }, 1500); }
