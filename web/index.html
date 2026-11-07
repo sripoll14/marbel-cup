@@ -82,11 +82,11 @@
     <div class="mc-fila">
       <img src="icons/apple-touch-icon.png" alt="">
       <div>
-        <p class="mc-tit">Ten Marbel Cup en tu iPhone</p>
-        <p class="mc-sub">Se instala desde Safari en 3 toques.</p>
+        <p class="mc-tit" id="mc-i-tit">Ten Marbel Cup en tu iPhone</p>
+        <p class="mc-sub" id="mc-i-sub">Se instala desde Safari en 3 toques.</p>
       </div>
     </div>
-    <ol class="mc-pasos">
+    <ol class="mc-pasos" id="mc-i-pasos">
       <li><span>Toca <b>Compartir</b>
         <svg class="mc-ico" viewBox="0 0 24 24" fill="none" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
         abajo en la barra de Safari</span></li>
@@ -95,6 +95,7 @@
     </ol>
     <p class="mc-nota">Para recibir avisos en el iPhone hay que abrir Marbel Cup desde el icono de la pantalla de inicio (iOS 16.4 o posterior).</p>
     <div class="mc-botones">
+      <button class="mc-b no" id="mc-i-copiar" style="display:none">Copiar enlace</button>
       <button class="mc-b cian" id="mc-i-ok">Entendido, no volver a mostrar</button>
     </div>
   </div>
@@ -122,15 +123,56 @@
       };
       window.addEventListener('appinstalled', function () { a.classList.remove('ver'); guardar('mc_instalar_visto'); });
 
-      // iPhone / iPad (Safari, no hay aviso automático: se explican los pasos)
+      // iPhone / iPad: no hay aviso automático, así que se explican los pasos según el navegador
       var ua = navigator.userAgent;
       var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      var safari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA/.test(ua);
       var i = document.getElementById('mc-ios');
-      if (ios && safari && !leer('mc_ios_visto')) {
+      var compartir = document.querySelector('#mc-i-pasos svg').outerHTML;
+      function pasos(lista) {
+        document.getElementById('mc-i-pasos').innerHTML = lista.map(function (t) { return '<li><span>' + t + '</span></li>'; }).join('');
+      }
+      var clave = 'mc_ios_visto';
+      var navegador = /CriOS/.test(ua) ? 'Chrome' : /EdgiOS/.test(ua) ? 'Edge' : /FxiOS/.test(ua) ? 'Firefox' : /OPiOS|OPT\//.test(ua) ? 'Opera' : null;
+      var dentroDeApp = /GSA\/|FBAN|FBAV|Instagram|Line\/|Twitter|LinkedInApp|Snapchat|musical_ly|BytedanceWebview/.test(ua);
+
+      if (dentroDeApp) {
+        // App de Google, Instagram, Facebook...: desde ahí no se puede instalar
+        clave = 'mc_ios_app_visto';
+        document.getElementById('mc-i-tit').textContent = 'Ábrela en Safari para instalarla';
+        document.getElementById('mc-i-sub').textContent = 'Desde esta app no se puede añadir a la pantalla de inicio.';
+        pasos([
+          'Toca <b>Compartir</b> ' + compartir + ' o el menú <b>⋯</b>',
+          'Elige <b>Abrir en Safari</b> (o copia el enlace y pégalo en Safari o Chrome)',
+          'Allí te saldrán los pasos para <b>añadirla a la pantalla de inicio</b>'
+        ]);
+        document.getElementById('mc-i-copiar').style.display = '';
+      } else if (navegador === 'Chrome') {
+        document.getElementById('mc-i-sub').textContent = 'Se instala desde Chrome en 3 toques (iOS 16.4 o posterior).';
+        pasos([
+          'Toca <b>Compartir</b> ' + compartir + ' en la barra de la dirección, arriba',
+          'Elige <b>Añadir a pantalla de inicio</b> (si no lo ves, desliza hacia abajo y toca <b>Editar acciones</b>)',
+          'Pulsa <b>Añadir</b> arriba a la derecha'
+        ]);
+      } else if (navegador) {
+        var menu = navegador === 'Firefox' ? '<b>☰</b> abajo a la derecha' : '<b>⋯</b> abajo';
+        document.getElementById('mc-i-sub').textContent = 'Se instala desde ' + navegador + ' en 3 toques (iOS 16.4 o posterior).';
+        pasos([
+          'Abre el menú ' + menu + ' y toca <b>Compartir</b> ' + compartir,
+          'Elige <b>Añadir a pantalla de inicio</b>',
+          'Pulsa <b>Añadir</b>. Si no te sale la opción, abre la web en <b>Safari</b>'
+        ]);
+      }
+
+      if (ios && !leer(clave)) {
         setTimeout(function () { i.classList.add('ver'); }, 5000);
       }
-      document.getElementById('mc-i-ok').onclick = function () { i.classList.remove('ver'); guardar('mc_ios_visto'); };
+      document.getElementById('mc-i-ok').onclick = function () { i.classList.remove('ver'); guardar(clave); };
+      document.getElementById('mc-i-copiar').onclick = function () {
+        var b = this, url = location.href.split('#')[0];
+        function hecho() { b.textContent = '¡Copiado!'; setTimeout(function () { b.textContent = 'Copiar enlace'; }, 1500); }
+        if (navigator.clipboard) navigator.clipboard.writeText(url).then(hecho, function () { prompt('Copia este enlace:', url); });
+        else prompt('Copia este enlace:', url);
+      };
     })();
   </script>
   <!-- iPhone: si Safari deja la página desplazada al abrir, los toques no coinciden con los botones -->

@@ -246,7 +246,7 @@ class _TarjetaPush extends StatelessWidget {
             ]);
           case EstadoPush.instalarPrimero:
             cuerpo = const Text(
-              'En iPhone, primero instala la app: en Safari toca Compartir → «Añadir a pantalla de inicio». '
+              'En iPhone, primero instala la app: en Safari o Chrome toca Compartir → «Añadir a pantalla de inicio». '
               'Después ábrela desde el icono y vuelve aquí para activarlas (iOS 16.4 o posterior).',
               style: TextStyle(color: MarbelColors.texto2, height: 1.35),
             );
