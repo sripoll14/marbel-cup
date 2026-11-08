@@ -86,6 +86,7 @@ class _AvisoRetraso extends StatelessWidget {
         Wrap(spacing: 10, runSpacing: 8, children: [
           BotonCian('Ya ha empezado', onTap: () => ejecutar(context, () async {
                 await db.from('partidos').update({'estado': 'en_juego', 'retraso_min': p.minutosDeRetraso}).eq('id', p.id);
+                await datos.refrescarPartidos();
               }, ok: 'Marcado en juego')),
           BotonContorno('Avisar a seguidores', onTap: () => ejecutar(context, () async {
                 final sede = datos.sede(p.sedeId)?.nombre ?? '';
@@ -97,6 +98,7 @@ class _AvisoRetraso extends StatelessWidget {
                   'torneo_id': datos.torneo?.id,
                 });
                 await db.from('partidos').update({'retraso_min': p.minutosDeRetraso, 'aviso_retraso': true}).eq('id', p.id);
+                await datos.refrescarPartidos();
               }, ok: 'Aviso publicado')),
         ]),
       ]),
@@ -112,6 +114,7 @@ class _EditorPartido extends StatelessWidget {
   Future<void> _cambiar(BuildContext context, Map<String, dynamic> cambios) =>
       ejecutar(context, () async {
         await db.from('partidos').update(cambios).eq('id', p.id);
+        await datos.refrescarPartidos(); // se ve al instante, sin esperar al directo
       });
 
   @override
@@ -239,6 +242,7 @@ class _EditorPartido extends StatelessWidget {
                 final campo = g.equipoId == p.localId ? 'goles_local' : 'goles_visitante';
                 final actual = g.equipoId == p.localId ? (p.golesLocal ?? 0) : (p.golesVisitante ?? 0);
                 if (actual > 0) await db.from('partidos').update({campo: actual - 1}).eq('id', p.id);
+                await datos.refrescarPartidos();
               }),
             ),
           if (p.localId != null && p.visitanteId != null)
@@ -303,6 +307,7 @@ class _EditorPartido extends StatelessWidget {
       if (!p.tieneMarcador) cambios[campo == 'goles_local' ? 'goles_visitante' : 'goles_local'] = 0;
       if (p.estado == Estado.programado) cambios['estado'] = 'en_juego';
       await db.from('partidos').update(cambios).eq('id', p.id);
+      await datos.refrescarPartidos();
     }, ok: 'Gol añadido');
   }
 

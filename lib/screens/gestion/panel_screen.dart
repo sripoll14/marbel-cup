@@ -24,14 +24,15 @@ class _Apartado {
   final Widget Function() builder;
 }
 
+// Sin `const` en las secciones: así se vuelven a pintar cada vez que cambian los datos.
 final _apartados = [
-  _Apartado('Partidos y resultados', Icons.scoreboard_rounded, {Rol.admin, Rol.mesa}, () => const SeccionPartidos()),
-  _Apartado('Avisos y notificaciones', Icons.campaign_rounded, {Rol.admin, Rol.comunicacion, Rol.mesa}, () => const SeccionAvisos()),
-  _Apartado('Torneos', Icons.emoji_events_rounded, {Rol.admin}, () => const SeccionTorneos()),
-  _Apartado('Equipos e inscripciones', Icons.shield_rounded, {Rol.admin}, () => const SeccionEquipos()),
-  _Apartado('Calendario y sedes', Icons.calendar_month_rounded, {Rol.admin}, () => const SeccionCalendario()),
-  _Apartado('Galería', Icons.photo_library_rounded, {Rol.admin, Rol.comunicacion}, () => const SeccionGaleria()),
-  _Apartado('Personal y permisos', Icons.admin_panel_settings_rounded, {Rol.admin}, () => const SeccionPersonal()),
+  _Apartado('Partidos y resultados', Icons.scoreboard_rounded, {Rol.admin, Rol.mesa}, () => SeccionPartidos()),
+  _Apartado('Avisos y notificaciones', Icons.campaign_rounded, {Rol.admin, Rol.comunicacion, Rol.mesa}, () => SeccionAvisos()),
+  _Apartado('Torneos', Icons.emoji_events_rounded, {Rol.admin}, () => SeccionTorneos()),
+  _Apartado('Equipos e inscripciones', Icons.shield_rounded, {Rol.admin}, () => SeccionEquipos()),
+  _Apartado('Calendario y sedes', Icons.calendar_month_rounded, {Rol.admin}, () => SeccionCalendario()),
+  _Apartado('Galería', Icons.photo_library_rounded, {Rol.admin, Rol.comunicacion}, () => SeccionGaleria()),
+  _Apartado('Personal y permisos', Icons.admin_panel_settings_rounded, {Rol.admin}, () => SeccionPersonal()),
 ];
 
 /// Panel de gestión (dirección aparte: .../#/gestion). Solo personal autorizado.

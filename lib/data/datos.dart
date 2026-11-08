@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/env.dart';
@@ -29,6 +29,8 @@ class Datos extends ChangeNotifier {
 
   final _subs = <StreamSubscription>[];
   Timer? _reloj;
+  Timer? _reconexion;
+  AppLifecycleListener? _ciclo;
 
   Future<void> iniciar() async {
     if (!Env.configurado) {
@@ -40,6 +42,11 @@ class Datos extends ChangeNotifier {
     try {
       await recargar();
       _escuchar();
+      // Al volver a la app (el móvil corta la conexión en segundo plano): datos frescos y reconectar
+      _ciclo = AppLifecycleListener(onResume: () {
+        recargar().catchError((Object e) => debugPrint('recargar: $e'));
+        _reconectar();
+      });
       // Cada 30 s se repinta: minutos de juego, retrasos y cuenta atrás.
       _reloj = Timer.periodic(const Duration(seconds: 30), (_) => notifyListeners());
     } catch (e) {
@@ -82,16 +89,46 @@ class Datos extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Recarga solo partidos y goles (tras un cambio en el panel, para verlo al instante).
+  Future<void> refrescarPartidos() async {
+    final r = await Future.wait<List<Map<String, dynamic>>>([
+      db.from('partidos').select().order('hora', ascending: true),
+      db.from('goles').select(),
+    ]);
+    partidos = r[0].map(Partido.fromMap).toList();
+    goles = r[1].map(Gol.fromMap).toList();
+    notifyListeners();
+  }
+
+  void _reconectar() {
+    _reconexion?.cancel();
+    for (final s in _subs) {
+      s.cancel();
+    }
+    _subs.clear();
+    _escuchar();
+  }
+
+  /// Si se corta la conexión en directo, vuelve a intentarlo a los 5 segundos.
+  void _alFallar(Object e) {
+    debugPrint('tiempo real: $e');
+    _reconexion?.cancel();
+    _reconexion = Timer(const Duration(seconds: 5), () {
+      recargar().catchError((Object e) => debugPrint('recargar: $e'));
+      _reconectar();
+    });
+  }
+
   void _escuchar() {
     _subs.add(db.from('partidos').stream(primaryKey: ['id']).listen((filas) {
       partidos = filas.map(Partido.fromMap).toList()
         ..sort((a, b) => a.hora.compareTo(b.hora));
       notifyListeners();
-    }));
+    }, onError: _alFallar));
     _subs.add(db.from('goles').stream(primaryKey: ['id']).listen((filas) {
       goles = filas.map(Gol.fromMap).toList();
       notifyListeners();
-    }));
+    }, onError: _alFallar));
     _subs.add(db.from('avisos').stream(primaryKey: ['id']).listen((filas) {
       avisos = filas.map(Aviso.fromMap).toList()
         ..sort((a, b) {
@@ -99,12 +136,12 @@ class Datos extends ChangeNotifier {
           return b.creado.compareTo(a.creado);
         });
       notifyListeners();
-    }));
+    }, onError: _alFallar));
     _subs.add(db.from('fotos').stream(primaryKey: ['id']).listen((filas) {
       fotos = filas.map(Foto.fromMap).toList()
         ..sort((a, b) => a.orden.compareTo(b.orden));
       notifyListeners();
-    }));
+    }, onError: _alFallar));
   }
 
   @override
@@ -113,6 +150,8 @@ class Datos extends ChangeNotifier {
       s.cancel();
     }
     _reloj?.cancel();
+    _reconexion?.cancel();
+    _ciclo?.dispose();
     super.dispose();
   }
 

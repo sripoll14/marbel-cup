@@ -28,14 +28,15 @@ class InicioScreen extends StatelessWidget {
           final hueco = SizedBox(height: ancho ? 56 : 36);
           return PaginaPublica(
             children: [
-              if (!ancho) const _CabeceraApp(),
-              const _Hero(),
+              // Sin `const` en lo que lee datos: así se repinta en cuanto llega un gol o un aviso.
+              if (!ancho) _CabeceraApp(),
+              _Hero(),
               hueco,
-              const AnchoMax(child: _Avisos()),
+              AnchoMax(child: _Avisos()),
               hueco,
-              const AnchoMax(child: _EnDirecto()),
+              AnchoMax(child: _EnDirecto()),
               hueco,
-              const AnchoMax(child: Competicion()),
+              AnchoMax(child: Competicion()),
               hueco,
               const AnchoMax(child: _Niveles()),
               hueco,
@@ -58,7 +59,7 @@ class InicioScreen extends StatelessWidget {
                 ),
               ),
               hueco,
-              const AnchoMax(child: _Momentazos()),
+              AnchoMax(child: _Momentazos()),
             ],
           );
         },
