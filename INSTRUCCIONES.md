@@ -20,6 +20,7 @@ Tu `env.json` y la carpeta oculta `.git` no se tocan, porque no van en el zip. P
 2. Abre `supabase/04_completo.sql` con el Bloc de notas, copia **todo**, pégalo y pulsa **Run**.
 3. Debe acabar en *Success. No rows returned*. Si lo ejecutas dos veces no pasa nada.
 4. Haz lo mismo con `supabase/05_varios_roles.sql` (permite dar varios roles a una persona, por ejemplo Mesa de sede + Comunicación).
+5. Y con `supabase/07_calendario_varias_sedes.sql` (permite que una liga juegue en varias sedes a la vez y en varios días). El `06` es el de las notificaciones: va en `NOTIFICACIONES.md`.
 
 Esto añade:
 
@@ -76,7 +77,7 @@ Hazlo en este orden:
 
 1. **Torneos**: comprueba que el IV Torneo Navideño está como *Actual* y *Publicado*.
 2. **Equipos e inscripciones**: en cada equipo, **Inscribir en una liga** (categoría y nivel). Si falta algún equipo, **Nuevo equipo**. Los escudos ya vienen puestos y se pueden cambiar con **Subir escudo**.
-3. **Calendario y sedes**: en cada liga, **Generar liguilla** (sede, hora del primer partido, minutos entre partidos y campos a la vez). Cuando acabe la liguilla, **Generar fase final**: crea las semifinales (1º–4º y 2º–3º), el partido por el 3er y 4º puesto y la final. Estos dos últimos se rellenan solos con los resultados.
+3. **Calendario y sedes**: en cada liga, **Generar liguilla**. Salen ya los días y las sedes del cuadro del torneo; revisa las horas, los campos de cada sede y los minutos por partido. Cuando acabe la liguilla, **Generar fase final**: crea las semifinales (1º–4º y 2º–3º), el partido por el 3er y 4º puesto y la final. Estos dos últimos se rellenan solos con los resultados.
 4. **Partidos y resultados**: durante el torneo, el marcador se lleva con + y −, el estado con *Próximo / En juego / Final*, y también se cambian el campo y el retraso. Los goles con nombre se apuntan como "Hugo S." y el equipo.
 
 ## 7. Subirlo a GitHub (y se publica solo)
@@ -111,12 +112,12 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 
 ## 9. Qué comprobar
 
-- [Y] Inicio: cuenta atrás, avisos, carrusel de fotos y mapa de sedes.
+- [ ] Inicio: cuenta atrás, avisos, carrusel de fotos y mapa de sedes.
 - [ ] Partidos: filtros por día y sede; un partido "En juego" aparece en Inicio al momento.
 - [ ] Equipos: seguir un equipo (☆), y su ficha con partidos y racha.
 - [ ] Estadísticas: goleadores como "Nombre I. · Equipo".
 - [ ] La Porra: crear cuenta, predecir, ver el ranking. **Autorrelleno de contraseñas:** al crear cuenta, el móvil debe ofrecer una contraseña segura y guardarla; al entrar, debe rellenarla sola; al cambiarla en "¿Has olvidado tu contraseña?", debe actualizar la guardada.
-- [Y] "Mantener sesión iniciada": si lo desmarcas, al cerrar y volver a abrir te pide entrar otra vez.
+- [ ] "Mantener sesión iniciada": si lo desmarcas, al cerrar y volver a abrir te pide entrar otra vez.
 - [ ] Recuperar contraseña: llega el email y el enlace abre "Elige una contraseña nueva".
 - [ ] Panel: cambiar un resultado en el ordenador y verlo cambiar en el móvil sin recargar.
 - [ ] Pie: los enlaces de Privacidad, Aviso legal y Cookies abren sus páginas.

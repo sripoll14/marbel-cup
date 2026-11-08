@@ -4,6 +4,7 @@ import '../../data/datos.dart';
 import '../../data/modelos.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/comunes.dart';
+import 'dialogo_liguilla.dart';
 import 'utiles.dart';
 
 /// Genera la liguilla y la fase final de cada liga, y muestra las sedes.
@@ -32,7 +33,7 @@ class SeccionCalendario extends StatelessWidget {
                 onCambio: (v) => set(() => sede = v),
               ),
               const SizedBox(height: 12),
-              const Text('Primer partido', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFFC8D0F5))),
+              const Text('Hora de las semifinales', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFFC8D0F5))),
               const SizedBox(height: 4),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -48,7 +49,7 @@ class SeccionCalendario extends StatelessWidget {
                   child: TextField(
                     controller: minutos,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Minutos entre partidos'),
+                    decoration: const InputDecoration(labelText: 'Minutos por partido'),
                   ),
                 ),
                 if (conCampos) ...[
@@ -57,13 +58,13 @@ class SeccionCalendario extends StatelessWidget {
                     child: TextField(
                       controller: campos,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Campos a la vez'),
+                      decoration: const InputDecoration(labelText: 'Campos de la sede'),
                     ),
                   ),
                 ],
               ]),
               const SizedBox(height: 10),
-              const Text('Luego puedes mover cualquier partido de hora, sede o campo en «Partidos y resultados».',
+              const Text('Usa los campos que estén libres a esa hora (sin pisar otras ligas). Luego puedes mover cualquier partido en «Partidos y resultados».',
                   style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
             ]),
           ),
@@ -155,18 +156,17 @@ class _FilaLiga extends StatelessWidget {
               onPressed: equipos.length < 2
                   ? null
                   : () async {
-                      final d = await pedirDatos(context, 'Liguilla · ${datos.nombreLiga(liga.id)}');
+                      final d = await pedirLiguilla(context, liga);
                       if (d == null || !context.mounted) return;
                       await ejecutar(context, () async {
                         await db.rpc('generar_liga', params: {
                           'p_liga': liga.id,
-                          'p_inicio': d.inicio.toUtc().toIso8601String(),
-                          'p_sede': d.sede,
+                          'p_franjas': d.franjas,
                           'p_minutos': d.minutos,
-                          'p_campos': d.campos,
+                          'p_repartir': d.repartir,
                         });
                         await datos.recargar();
-                      }, ok: 'Liguilla generada');
+                      }, ok: 'Liguilla generada. Revísala en «Partidos y resultados».');
                     },
               icon: const Icon(Icons.auto_awesome_rounded, size: 18),
               label: const Text('Generar liguilla'),
@@ -195,7 +195,7 @@ class _FilaLiga extends StatelessWidget {
                   return;
                 }
                 if (!context.mounted) return;
-                final d = await pedirDatos(context, 'Fase final · ${datos.nombreLiga(liga.id)}', conCampos: false);
+                final d = await pedirDatos(context, 'Fase final · ${datos.nombreLiga(liga.id)}');
                 if (d == null || !context.mounted) return;
                 await ejecutar(context, () async {
                   await db.rpc('generar_fase_final', params: {
@@ -203,6 +203,7 @@ class _FilaLiga extends StatelessWidget {
                     'p_inicio': d.inicio.toUtc().toIso8601String(),
                     'p_sede': d.sede,
                     'p_minutos': d.minutos,
+                    'p_campos': d.campos,
                   });
                   await datos.recargar();
                 }, ok: 'Semifinales, 3er puesto y final creados');
