@@ -115,6 +115,12 @@ class _MasScreenState extends State<MasScreen> {
               TextButton(onPressed: () => abrirLegal('aviso-legal'), child: const Text('Aviso legal')),
               TextButton(onPressed: () => abrirLegal('cookies'), child: const Text('Cookies')),
             ]),
+            const SizedBox(height: 4),
+            const Center(
+              child: Text('Web y app hechas por Sandra Hernández Ripoll',
+                  textAlign: TextAlign.center, style: TextStyle(color: MarbelColors.texto2, fontSize: 13, fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(height: 4),
             if (p == null)
               Center(
                 child: TextButton(

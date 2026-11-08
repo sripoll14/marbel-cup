@@ -464,6 +464,9 @@ class Pie extends StatelessWidget {
             _EnlaceLegal('Política de cookies', 'cookies'),
           ],
         ),
+        const SizedBox(height: 14),
+        const Text('Web hecha por Sandra Hernández Ripoll',
+            style: TextStyle(color: MarbelColors.blanco, fontSize: 13, fontWeight: FontWeight.w700)),
       ],
     );
     return Container(
