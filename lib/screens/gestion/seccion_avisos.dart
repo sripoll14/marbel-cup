@@ -67,6 +67,7 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
         'ambito_ref': _ambito == 'todos' ? null : _ref,
         'torneo_id': datos.torneo?.id,
       });
+      await datos.recargar(); // se ve en la lista al momento
     }, ok: 'Aviso publicado');
     if (!mounted) return;
     setState(() {
@@ -187,6 +188,7 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
                 tooltip: a.fijado ? 'Desfijar' : 'Fijar',
                 onPressed: () => ejecutar(context, () async {
                   await db.from('avisos').update({'fijado': !a.fijado}).eq('id', a.id);
+                  await datos.recargar();
                 }),
                 icon: Icon(a.fijado ? Icons.push_pin_rounded : Icons.push_pin_outlined, color: MarbelColors.cian),
               ),
@@ -196,6 +198,7 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
                   if (await confirmar(context, '¿Borrar aviso?', 'Desaparecerá de la web y la app.', boton: 'Borrar') && context.mounted) {
                     await ejecutar(context, () async {
                       await db.from('avisos').delete().eq('id', a.id);
+                      await datos.recargar();
                     }, ok: 'Aviso borrado');
                   }
                 },
