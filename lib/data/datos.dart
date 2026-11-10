@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/env.dart';
@@ -8,12 +10,23 @@ import 'modelos.dart';
 
 SupabaseClient get db => Supabase.instance.client;
 
+typedef Filas = List<Map<String, dynamic>>;
+
 /// Todos los datos públicos del torneo, cargados una vez y actualizados en
 /// tiempo real (partidos, goles, avisos y fotos). Las pantallas lo escuchan
 /// con `ListenableBuilder(listenable: datos, ...)`.
+///
+/// Sin conexión: se guarda una copia en el móvil cada vez que llegan datos, y
+/// si no se puede conectar se enseña esa copia (con [sinConexion] a true).
 class Datos extends ChangeNotifier {
   bool cargando = true;
   String? error;
+
+  /// No hay conexión: lo que se ve es la última copia guardada.
+  bool sinConexion = false;
+
+  /// Cuándo llegaron los datos que se están enseñando.
+  DateTime? actualizado;
 
   Torneo? torneo;
   List<Torneo> torneos = [];
@@ -27,10 +40,26 @@ class Datos extends ChangeNotifier {
   List<Aviso> avisos = [];
   List<Foto> fotos = [];
 
+  /// Filas tal cual llegan del servidor, por tabla (lo que se guarda en la copia).
+  final _filas = <String, Filas>{};
+
+  /// Cambios del panel que aún no han llegado al servidor: se pintan encima
+  /// (lo pone la cola de cambios pendientes).
+  Filas Function(String tabla, Filas filas)? superponer;
+
   final _subs = <StreamSubscription>[];
   Timer? _reloj;
   Timer? _reconexion;
+  Timer? _reintento;
+  Timer? _guardado;
   AppLifecycleListener? _ciclo;
+  int _fallos = 0; // fallos seguidos del tiempo real
+
+  static const _tablas = [
+    'torneos', 'sedes', 'categorias', 'equipos', 'ligas',
+    'liga_equipos', 'partidos', 'goles', 'avisos', 'fotos',
+  ];
+  static const _claveCopia = 'copia_datos_v1';
 
   Future<void> iniciar() async {
     if (!Env.configurado) {
@@ -39,25 +68,33 @@ class Datos extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    try {
-      await recargar();
-      _escuchar();
-      // Al volver a la app (el móvil corta la conexión en segundo plano): datos frescos y reconectar
-      _ciclo = AppLifecycleListener(onResume: () {
-        recargar().catchError((Object e) => debugPrint('recargar: $e'));
-        _reconectar();
-      });
-      // Cada 30 s se repinta: minutos de juego, retrasos y cuenta atrás.
-      _reloj = Timer.periodic(const Duration(seconds: 30), (_) => notifyListeners());
-    } catch (e) {
-      error = 'No se han podido cargar los datos: $e';
+    // 1. Lo último guardado en el móvil, al instante (y sirve sin conexión)
+    final habiaCopia = await _leerCopia();
+    if (habiaCopia) {
+      cargando = false;
+      _construir();
     }
+    // 2. Datos frescos del servidor (con cobertura mala, no se espera más de 10 s)
+    try {
+      await recargar().timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint('cargar: $e');
+      if (!habiaCopia) error = 'No se han podido cargar los datos. Revisa la conexión a internet.';
+      _marcarSinConexion();
+    }
+    _escuchar();
+    // Al volver a la app (el móvil corta la conexión en segundo plano): datos frescos y reconectar
+    _ciclo = AppLifecycleListener(onResume: () {
+      recargar().then((_) => _reconectar(), onError: (Object e) => _marcarSinConexion());
+    });
+    // Cada 30 s se repinta: minutos de juego, retrasos y cuenta atrás.
+    _reloj = Timer.periodic(const Duration(seconds: 30), (_) => notifyListeners());
     cargando = false;
     notifyListeners();
   }
 
   Future<void> recargar() async {
-    final r = await Future.wait<List<Map<String, dynamic>>>([
+    final r = await Future.wait<Filas>([
       db.from('torneos').select().order('inicio', ascending: false),
       db.from('sedes').select().order('orden', ascending: true),
       db.from('categorias').select().order('orden', ascending: true),
@@ -69,37 +106,116 @@ class Datos extends ChangeNotifier {
       db.from('avisos').select().order('creado', ascending: false).limit(100),
       db.from('fotos').select().order('orden', ascending: true),
     ]);
-    torneos = r[0].map(Torneo.fromMap).toList();
-    torneo = torneos.where((t) => t.activo).firstOrNull ??
-        (torneos.isEmpty ? null : torneos.first);
-    sedes = r[1].map(Sede.fromMap).toList();
-    categorias = r[2].map(Categoria.fromMap).toList();
-    equipos = r[3].map(Equipo.fromMap).toList();
-    ligas = r[4].map(Liga.fromMap).toList();
-    equiposDeLiga = {};
-    for (final m in r[5]) {
-      equiposDeLiga
-          .putIfAbsent(m['liga_id'] as String, () => [])
-          .add(m['equipo_id'] as String);
+    for (var i = 0; i < _tablas.length; i++) {
+      _filas[_tablas[i]] = r[i];
     }
-    partidos = r[6].map(Partido.fromMap).toList();
-    goles = r[7].map(Gol.fromMap).toList();
-    avisos = r[8].map(Aviso.fromMap).toList();
-    fotos = r[9].map(Foto.fromMap).toList();
-    notifyListeners();
+    _recibido();
   }
 
   /// Recarga solo partidos y goles (tras un cambio en el panel, para verlo al instante).
   Future<void> refrescarPartidos() async {
-    final r = await Future.wait<List<Map<String, dynamic>>>([
+    final r = await Future.wait<Filas>([
       db.from('partidos').select().order('hora', ascending: true),
       db.from('goles').select(),
     ]);
-    partidos = r[0].map(Partido.fromMap).toList();
-    goles = r[1].map(Gol.fromMap).toList();
+    _filas['partidos'] = r[0];
+    _filas['goles'] = r[1];
+    _recibido();
+  }
+
+  /// Vuelve a pintar con lo que hay (p. ej. al cambiar los cambios pendientes).
+  void repintar() => _construir();
+
+  /// Han llegado datos del servidor: hay conexión.
+  void _recibido() {
+    actualizado = DateTime.now();
+    error = null;
+    sinConexion = false;
+    _reintento?.cancel();
+    _reintento = null;
+    _guardarCopia();
+    _construir();
+  }
+
+  void _marcarSinConexion() {
+    if (!sinConexion) {
+      sinConexion = true;
+      notifyListeners();
+    }
+    if (_reintento != null) return;
+    // Cada 20 s se vuelve a intentar
+    _reintento = Timer.periodic(const Duration(seconds: 20), (_) async {
+      try {
+        await recargar();
+        _reconectar();
+      } catch (_) {}
+    });
+  }
+
+  Filas _de(String tabla) {
+    final f = _filas[tabla] ?? const <Map<String, dynamic>>[];
+    final s = superponer;
+    return s == null ? f : s(tabla, f);
+  }
+
+  void _construir() {
+    torneos = _de('torneos').map(Torneo.fromMap).toList();
+    torneo = torneos.where((t) => t.activo).firstOrNull ?? (torneos.isEmpty ? null : torneos.first);
+    sedes = _de('sedes').map(Sede.fromMap).toList();
+    categorias = _de('categorias').map(Categoria.fromMap).toList();
+    equipos = _de('equipos').map(Equipo.fromMap).toList();
+    ligas = _de('ligas').map(Liga.fromMap).toList();
+    equiposDeLiga = {};
+    for (final m in _de('liga_equipos')) {
+      equiposDeLiga.putIfAbsent(m['liga_id'] as String, () => []).add(m['equipo_id'] as String);
+    }
+    partidos = _de('partidos').map(Partido.fromMap).toList()..sort((a, b) => a.hora.compareTo(b.hora));
+    goles = _de('goles').map(Gol.fromMap).toList();
+    avisos = _de('avisos').map(Aviso.fromMap).toList()
+      ..sort((a, b) {
+        if (a.fijado != b.fijado) return a.fijado ? -1 : 1;
+        return b.creado.compareTo(a.creado);
+      });
+    fotos = _de('fotos').map(Foto.fromMap).toList()..sort((a, b) => a.orden.compareTo(b.orden));
     notifyListeners();
   }
 
+  // ---------- Copia en el móvil ----------
+  Future<bool> _leerCopia() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final txt = prefs.getString(_claveCopia);
+      if (txt == null) return false;
+      final m = jsonDecode(txt) as Map<String, dynamic>;
+      final filas = m['filas'] as Map<String, dynamic>;
+      for (final t in _tablas) {
+        _filas[t] = [for (final f in (filas[t] as List? ?? const [])) Map<String, dynamic>.from(f as Map)];
+      }
+      actualizado = DateTime.tryParse(m['cuando'] as String? ?? '')?.toLocal();
+      return true;
+    } catch (e) {
+      debugPrint('copia: $e');
+      return false;
+    }
+  }
+
+  /// Se guarda unos segundos después (si llegan varios cambios seguidos, una vez).
+  void _guardarCopia() {
+    _guardado?.cancel();
+    _guardado = Timer(const Duration(seconds: 3), () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_claveCopia, jsonEncode({
+          'cuando': (actualizado ?? DateTime.now()).toUtc().toIso8601String(),
+          'filas': _filas,
+        }));
+      } catch (e) {
+        debugPrint('copia: $e');
+      }
+    });
+  }
+
+  // ---------- Tiempo real ----------
   void _reconectar() {
     _reconexion?.cancel();
     for (final s in _subs) {
@@ -109,39 +225,28 @@ class Datos extends ChangeNotifier {
     _escuchar();
   }
 
-  /// Si se corta la conexión en directo, vuelve a intentarlo a los 5 segundos.
+  /// Si se corta la conexión en directo, vuelve a intentarlo: a los 5 s, luego
+  /// 10, 20, 40… (como mucho, cada minuto y pico) mientras siga fallando.
   void _alFallar(Object e) {
     debugPrint('tiempo real: $e');
     _reconexion?.cancel();
-    _reconexion = Timer(const Duration(seconds: 5), () {
-      recargar().catchError((Object e) => debugPrint('recargar: $e'));
-      _reconectar();
+    final n = _fallos < 4 ? _fallos : 4;
+    final espera = 5 * (1 << n); // 5, 10, 20, 40, 80 s
+
+    _fallos++;
+    _reconexion = Timer(Duration(seconds: espera), () {
+      recargar().then((_) => _reconectar(), onError: (Object e) => _marcarSinConexion());
     });
   }
 
   void _escuchar() {
-    _subs.add(db.from('partidos').stream(primaryKey: ['id']).listen((filas) {
-      partidos = filas.map(Partido.fromMap).toList()
-        ..sort((a, b) => a.hora.compareTo(b.hora));
-      notifyListeners();
-    }, onError: _alFallar));
-    _subs.add(db.from('goles').stream(primaryKey: ['id']).listen((filas) {
-      goles = filas.map(Gol.fromMap).toList();
-      notifyListeners();
-    }, onError: _alFallar));
-    _subs.add(db.from('avisos').stream(primaryKey: ['id']).listen((filas) {
-      avisos = filas.map(Aviso.fromMap).toList()
-        ..sort((a, b) {
-          if (a.fijado != b.fijado) return a.fijado ? -1 : 1;
-          return b.creado.compareTo(a.creado);
-        });
-      notifyListeners();
-    }, onError: _alFallar));
-    _subs.add(db.from('fotos').stream(primaryKey: ['id']).listen((filas) {
-      fotos = filas.map(Foto.fromMap).toList()
-        ..sort((a, b) => a.orden.compareTo(b.orden));
-      notifyListeners();
-    }, onError: _alFallar));
+    for (final tabla in const ['partidos', 'goles', 'avisos', 'fotos']) {
+      _subs.add(db.from(tabla).stream(primaryKey: ['id']).listen((filas) {
+        _fallos = 0;
+        _filas[tabla] = filas;
+        _recibido();
+      }, onError: _alFallar));
+    }
   }
 
   @override
@@ -151,6 +256,8 @@ class Datos extends ChangeNotifier {
     }
     _reloj?.cancel();
     _reconexion?.cancel();
+    _reintento?.cancel();
+    _guardado?.cancel();
     _ciclo?.dispose();
     super.dispose();
   }

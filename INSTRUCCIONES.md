@@ -126,3 +126,10 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 
 - **Notificaciones push con la app cerrada:** se activan aparte. Los pasos están en `NOTIFICACIONES.md`.
 - **Textos legales.** Están publicados con los huecos [entre corchetes] marcados. Rellénalos en `web/legal/*.html` (titular, NIF, domicilio, email de privacidad, plazos) y que los revise una persona experta antes del torneo.
+
+## Sin conexión y plan B
+
+- **Público:** la app guarda en el móvil una copia de lo último que vio y la propia app, así que abre aunque no haya internet. Arriba sale «Sin conexión · datos de las HH:MM» y se actualiza sola cuando vuelve la señal.
+- **Mesa de sede (Partidos y resultados):** sin cobertura se puede seguir apuntando el marcador, los goles, el estado, el campo y el retraso. Se ve al momento y arriba sale «N cambios sin enviar». Se envían solos, en orden, en cuanto vuelve la conexión (no cierres la app hasta que desaparezca el aviso si puedes; si la cierras, se envían al volver a abrirla). El resto del panel (equipos, calendario, avisos…) sí necesita conexión.
+- **Antes de cada torneo:** Supabase pausa los proyectos gratuitos tras una semana sin uso. Entra en supabase.com un par de días antes y la misma mañana, y comprueba que el proyecto está activo (si pone *Paused*, pulsa *Restore*).
+- **Plan B:** acta en papel en cada mesa y al menos dos personas con acceso por sede.

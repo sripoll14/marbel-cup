@@ -5,6 +5,7 @@ import '../data/contenido.dart';
 import '../data/sesion.dart';
 import '../theme/app_theme.dart';
 import 'comunes.dart';
+import 'conexion.dart';
 
 class _Seccion {
   const _Seccion(this.ruta, this.nombre, this.icono);
@@ -51,6 +52,7 @@ class MarcoApp extends StatelessWidget {
         body: Column(
           children: [
             _BarraSuperior(indice: _indice(_web, ubicacion)),
+            const FranjaConexion(),
             Expanded(child: child),
           ],
         ),
@@ -59,7 +61,10 @@ class MarcoApp extends StatelessWidget {
     // En móvil, lo que no es una pestaña cuelga de "Más".
     final i = _indice(_app, ubicacion, siNo: 4);
     return Scaffold(
-      body: SafeArea(bottom: false, child: child),
+      body: SafeArea(
+        bottom: false,
+        child: Column(children: [const FranjaConexion(), Expanded(child: child)]),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: i,
         onDestinationSelected: (n) => context.go(_app[n].ruta),

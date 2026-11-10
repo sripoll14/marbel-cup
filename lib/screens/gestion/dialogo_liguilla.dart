@@ -9,9 +9,9 @@ import '../../theme/app_theme.dart';
 typedef DatosLiguilla = ({List<Map<String, dynamic>> franjas, int minutos, bool repartir});
 
 class _SedeFranja {
-  _SedeFranja(this.sedeId, [this.campos = 2]);
+  _SedeFranja(this.sedeId);
   final String sedeId;
-  int campos;
+  int campos = 2;
 }
 
 /// Un día de juego: de qué hora a qué hora y en qué sedes (con cuántos campos cada una).

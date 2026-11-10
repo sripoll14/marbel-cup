@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/env.dart';
+import 'data/cola.dart';
 import 'data/datos.dart';
 import 'data/favoritos.dart';
 import 'data/notificaciones.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
   }
   await favoritos.iniciar();
   await sesion.iniciar();
+  if (Env.configurado) await cola.iniciar(); // cambios de la mesa pendientes de enviar
   datos.iniciar(); // carga en segundo plano; las pantallas muestran "cargando"
   if (Env.configurado) notificaciones.iniciar(); // notificaciones push (si estaban activadas)
   runApp(const MarbelCupApp());

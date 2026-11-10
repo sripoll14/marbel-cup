@@ -68,15 +68,26 @@ window.marbelPush = (function () {
     return endpoint;
   }
 
-  // Quita el service worker antiguo de Flutter (guardaba versiones viejas de la web)
-  // y, si las notificaciones ya estaban activadas, mantiene el nuestro al día.
+  // Quita el service worker antiguo de Flutter y registra el nuestro, que guarda
+  // una copia de la app para abrirla sin conexión (y recibe las notificaciones).
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function (regs) {
       regs.forEach(function (r) {
         const w = r.active || r.waiting || r.installing;
         if (w && /flutter_service_worker\.js/.test(w.scriptURL)) r.unregister();
       });
-      if (soportado() && permiso() === 'granted') registrar().catch(function () {});
+      return registrar();
+    }).then(function () {
+      return navigator.serviceWorker.ready;
+    }).then(function (reg) {
+      // Cuando la app termine de cargar, guardar también lo que ya se descargó
+      setTimeout(function () {
+        try {
+          const urls = [location.href.split('#')[0]].concat(
+            performance.getEntriesByType('resource').map(function (r) { return r.name; }));
+          if (reg.active) reg.active.postMessage({ tipo: 'guardar', urls: urls });
+        } catch (_) {}
+      }, 8000);
     }).catch(function () {});
   }
 

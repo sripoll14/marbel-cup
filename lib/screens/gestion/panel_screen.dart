@@ -7,6 +7,7 @@ import '../../data/sesion.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/comunes.dart';
 import '../../widgets/cuenta.dart';
+import '../../widgets/conexion.dart';
 import '../../widgets/marco_app.dart';
 import 'seccion_avisos.dart';
 import 'seccion_calendario.dart';
@@ -88,6 +89,7 @@ class _PanelScreenState extends State<PanelScreen> {
           return Scaffold(
             body: Column(children: [
               cabecera,
+              const FranjaConexion(panel: true),
               Expanded(
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Container(
@@ -134,6 +136,7 @@ class _PanelScreenState extends State<PanelScreen> {
           body: SafeArea(
             child: Column(children: [
               cabecera,
+              const FranjaConexion(panel: true),
               SizedBox(
                 height: 56,
                 child: ListView(

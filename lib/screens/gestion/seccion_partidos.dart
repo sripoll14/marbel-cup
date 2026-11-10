@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/cola.dart';
 import '../../data/datos.dart';
 import '../../data/modelos.dart';
 import '../../data/sesion.dart';
@@ -84,10 +85,10 @@ class _AvisoRetraso extends StatelessWidget {
             style: const TextStyle(color: Color(0xFFFFE08A))),
         const SizedBox(height: 10),
         Wrap(spacing: 10, runSpacing: 8, children: [
-          BotonCian('Ya ha empezado', onTap: () => ejecutar(context, () async {
-                await db.from('partidos').update({'estado': 'en_juego', 'retraso_min': p.minutosDeRetraso}).eq('id', p.id);
-                await datos.refrescarPartidos();
-              }, ok: 'Marcado en juego')),
+          BotonCian('Ya ha empezado', onTap: () {
+            cola.partido(p.id, {'estado': 'en_juego', 'retraso_min': p.minutosDeRetraso});
+            avisar(context, 'Marcado en juego');
+          }),
           BotonContorno('Avisar a seguidores', onTap: () => ejecutar(context, () async {
                 final sede = datos.sede(p.sedeId)?.nombre ?? '';
                 await db.from('avisos').insert({
@@ -97,8 +98,7 @@ class _AvisoRetraso extends StatelessWidget {
                   'automatico': true,
                   'torneo_id': datos.torneo?.id,
                 });
-                await db.from('partidos').update({'retraso_min': p.minutosDeRetraso, 'aviso_retraso': true}).eq('id', p.id);
-                await datos.refrescarPartidos();
+                await cola.partido(p.id, {'retraso_min': p.minutosDeRetraso, 'aviso_retraso': true});
               }, ok: 'Aviso publicado')),
         ]),
       ]),
@@ -111,11 +111,8 @@ class _EditorPartido extends StatelessWidget {
   final Partido p;
   final bool admin;
 
-  Future<void> _cambiar(BuildContext context, Map<String, dynamic> cambios) =>
-      ejecutar(context, () async {
-        await db.from('partidos').update(cambios).eq('id', p.id);
-        await datos.refrescarPartidos(); // se ve al instante, sin esperar al directo
-      });
+  /// Se ve al momento y se envía en cuanto haya conexión (sin cobertura, queda pendiente).
+  Future<void> _cambiar(BuildContext context, Map<String, dynamic> cambios) => cola.partido(p.id, cambios);
 
   @override
   Widget build(BuildContext context) {
@@ -237,13 +234,12 @@ class _EditorPartido extends StatelessWidget {
           for (final g in golesPartido)
             InputChip(
               label: Text('⚽ ${g.jugador}${g.minuto == null ? '' : " ${g.minuto}'"} · ${datos.equipo(g.equipoId)?.iniciales ?? ''}'),
-              onDeleted: () => ejecutar(context, () async {
-                await db.from('goles').delete().eq('id', g.id);
+              onDeleted: () async {
                 final campo = g.equipoId == p.localId ? 'goles_local' : 'goles_visitante';
                 final actual = g.equipoId == p.localId ? (p.golesLocal ?? 0) : (p.golesVisitante ?? 0);
-                if (actual > 0) await db.from('partidos').update({campo: actual - 1}).eq('id', p.id);
-                await datos.refrescarPartidos();
-              }),
+                await cola.borrarGol(g.id);
+                if (actual > 0) await cola.partido(p.id, {campo: actual - 1});
+              },
             ),
           if (p.localId != null && p.visitanteId != null)
             TextButton.icon(
@@ -294,21 +290,20 @@ class _EditorPartido extends StatelessWidget {
     );
     final n = _formatoNombre(nombre.text);
     if (ok != true || equipo == null || n.length < 2 || !context.mounted) return;
-    await ejecutar(context, () async {
-      await db.from('goles').insert({
-        'partido_id': p.id,
-        'equipo_id': equipo,
-        'jugador': n,
-        'minuto': int.tryParse(minuto.text.trim()),
-      });
-      final campo = equipo == p.localId ? 'goles_local' : 'goles_visitante';
-      final actual = equipo == p.localId ? (p.golesLocal ?? 0) : (p.golesVisitante ?? 0);
-      final cambios = <String, dynamic>{campo: actual + 1};
-      if (!p.tieneMarcador) cambios[campo == 'goles_local' ? 'goles_visitante' : 'goles_local'] = 0;
-      if (p.estado == Estado.programado) cambios['estado'] = 'en_juego';
-      await db.from('partidos').update(cambios).eq('id', p.id);
-      await datos.refrescarPartidos();
-    }, ok: 'Gol añadido');
+    await cola.nuevoGol({
+      'id': nuevoId(),
+      'partido_id': p.id,
+      'equipo_id': equipo,
+      'jugador': n,
+      'minuto': int.tryParse(minuto.text.trim()),
+    });
+    final campo = equipo == p.localId ? 'goles_local' : 'goles_visitante';
+    final actual = equipo == p.localId ? (p.golesLocal ?? 0) : (p.golesVisitante ?? 0);
+    final cambios = <String, dynamic>{campo: actual + 1};
+    if (!p.tieneMarcador) cambios[campo == 'goles_local' ? 'goles_visitante' : 'goles_local'] = 0;
+    if (p.estado == Estado.programado) cambios['estado'] = 'en_juego';
+    await cola.partido(p.id, cambios);
+    if (context.mounted) avisar(context, 'Gol añadido');
   }
 
   /// "hugo sánchez" -> "Hugo S."
