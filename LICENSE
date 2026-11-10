@@ -1,0 +1,39 @@
+Copyright (c) 2026 Sandra Hernández Ripoll
+Todos los derechos reservados. / All rights reserved.
+
+ESPAÑOL
+
+El código fuente, los diseños y la documentación de este repositorio
+(la web y app "Marbel Cup") son obra de Sandra Hernández Ripoll y están
+protegidos por la legislación de propiedad intelectual.
+
+Que este repositorio sea público solo permite verlo. Sin permiso previo y
+por escrito de la autora NO se permite copiarlo, modificarlo, distribuirlo,
+publicarlo, sublicenciarlo, venderlo ni usarlo, total o parcialmente, para
+crear otras webs o aplicaciones, con o sin ánimo de lucro.
+
+Para pedir permiso: a través del perfil de GitHub de la autora (sripoll14).
+
+Quedan fuera de esta licencia, y conservan la suya propia:
+  - El nombre, el logotipo, los escudos, las fotografías y demás contenidos
+    de Marbel Football Cup y de los clubes participantes, que pertenecen a
+    sus respectivos titulares.
+  - Las tipografías Barlow y Barlow Condensed (SIL Open Font License 1.1,
+    ver assets/fonts/OFL.txt).
+  - Los iconos de marcas de assets/fonts/MarcasMarbel.otf, basados en
+    Simple Icons (CC0 1.0). Las marcas que representan pertenecen a sus
+    titulares.
+  - Flutter, Dart, Supabase y los demás paquetes y herramientas de terceros
+    que usa el proyecto, cada uno con su licencia.
+
+EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO.
+
+ENGLISH
+
+The source code, designs and documentation in this repository (the
+"Marbel Cup" website and app) are the work of Sandra Hernández Ripoll.
+The repository being public only allows viewing it. Copying, modifying,
+distributing, publishing, sublicensing, selling or using it, in whole or in
+part, is NOT permitted without the author's prior written permission.
+Third-party content listed above keeps its own license and ownership.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
