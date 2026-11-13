@@ -460,6 +460,10 @@ class TarjetaAviso extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(a.texto, style: const TextStyle(fontSize: 16, height: 1.4)),
+                if (a.imagenes.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ImagenesAviso(a.imagenes),
+                ],
               ],
             ),
           ),

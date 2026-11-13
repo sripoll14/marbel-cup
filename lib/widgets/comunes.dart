@@ -603,3 +603,73 @@ class Icono extends StatelessWidget {
     return Icon(i as IconData, size: tamano, color: c);
   }
 }
+
+
+/// Fotos de un aviso, una al lado de otra. Al tocarlas se ven en grande.
+class ImagenesAviso extends StatelessWidget {
+  const ImagenesAviso(this.urls, {super.key, this.alto = 120});
+  final List<String> urls;
+  final double alto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(spacing: 10, runSpacing: 10, children: [
+      for (final (i, u) in urls.indexed)
+        Semantics(
+          button: true,
+          label: 'Imagen ${i + 1} del aviso. Toca para verla en grande',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => verImagenes(context, urls, i),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: alto, maxWidth: alto * 1.6),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  u,
+                  height: alto,
+                  fit: BoxFit.contain,
+                  errorBuilder: (c, e, s) => SizedBox(
+                    width: alto,
+                    height: alto,
+                    child: const Icon(Icons.image_not_supported_outlined, color: MarbelColors.apagado),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ]);
+  }
+}
+
+/// Imágenes a pantalla completa, con zoom y deslizando entre ellas.
+Future<void> verImagenes(BuildContext context, List<String> urls, int inicio) {
+  return showDialog<void>(
+    context: context,
+    barrierColor: Colors.black87,
+    builder: (d) => Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: Stack(children: [
+        PageView(
+          controller: PageController(initialPage: inicio),
+          children: [
+            for (final u in urls)
+              InteractiveViewer(maxScale: 4, child: Center(child: Image.network(u, fit: BoxFit.contain))),
+          ],
+        ),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: SafeArea(
+            child: IconButton.filled(
+              tooltip: 'Cerrar',
+              onPressed: () => Navigator.pop(d),
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ),
+        ),
+      ]),
+    ),
+  );
+}

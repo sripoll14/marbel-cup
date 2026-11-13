@@ -22,6 +22,7 @@ Tu `env.json` y la carpeta oculta `.git` no se tocan, porque no van en el zip. P
 4. Haz lo mismo con `supabase/05_varios_roles.sql` (permite dar varios roles a una persona, por ejemplo Mesa de sede + Comunicación).
 5. Y con `supabase/07_calendario_varias_sedes.sql` (permite que una liga juegue en varias sedes a la vez y en varios días). El `06` es el de las notificaciones: va en `NOTIFICACIONES.md`.
 6. Y con `supabase/08_comentarios.sql` (alias públicos, y comentarios con respuestas y reacciones en la página del torneo y en cada partido, con moderación).
+7. Y con `supabase/09_avisos_imagenes.sql` (permite poner hasta 4 imágenes en cada aviso).
 
 Esto añade:
 

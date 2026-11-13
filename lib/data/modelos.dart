@@ -260,10 +260,14 @@ class Aviso {
         creado = _t(m['creado'])!,
         ambito = m['ambito'] as String? ?? 'todos',
         ambitoRef = _s(m['ambito_ref']),
-        automatico = m['automatico'] as bool? ?? false;
+        automatico = m['automatico'] as bool? ?? false,
+        imagenes = [for (final u in (m['imagenes'] as List?) ?? const []) u as String];
 
   final String id;
   final String texto;
+
+  /// Fotos del aviso (escudos, carteles...). Como mucho 4.
+  final List<String> imagenes;
   final bool fijado;
   final DateTime creado;
   final String ambito;

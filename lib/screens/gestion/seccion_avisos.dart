@@ -5,6 +5,7 @@ import '../../data/modelos.dart';
 import '../../data/sesion.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/comunes.dart';
+import 'seccion_equipos.dart' show subirImagen;
 import 'utiles.dart';
 
 /// Publicar avisos. Comunicación y administración: cualquier ámbito.
@@ -22,6 +23,8 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
   String? _ref;
   bool _fijar = false;
   bool _enviando = false;
+  final List<String> _imagenes = [];
+  bool _subiendo = false;
 
   /// Mesa de sede sin Comunicación: solo avisos de su sede o de un equipo.
   bool get _mesa => sesion.tiene(Rol.mesa) && !sesion.tiene(Rol.comunicacion) && !sesion.tiene(Rol.admin);
@@ -48,6 +51,30 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
         _ => const [],
       };
 
+  Future<void> _anadirImagen() async {
+    if (_imagenes.length >= 4) return;
+    setState(() => _subiendo = true);
+    try {
+      final url = await subirImagen(context, 'avisos', 'aviso');
+      if (url != null && mounted) setState(() => _imagenes.add(url));
+    } catch (e) {
+      if (mounted) avisar(context, 'No se ha podido subir: ${mensajeError(e)}', error: true);
+    }
+    if (mounted) setState(() => _subiendo = false);
+  }
+
+  /// Borra del almacenamiento las imágenes que ya no se usan (si falla, no pasa nada).
+  Future<void> _borrarArchivos(List<String> urls) async {
+    final rutas = [
+      for (final u in urls)
+        if (u.contains('/avisos/')) Uri.decodeComponent(u.split('/avisos/').last.split('?').first),
+    ];
+    if (rutas.isEmpty) return;
+    try {
+      await db.storage.from('avisos').remove(rutas);
+    } catch (_) {}
+  }
+
   Future<void> _publicar() async {
     final t = _texto.text.trim();
     if (t.isEmpty) {
@@ -66,6 +93,7 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
         'ambito': _ambito,
         'ambito_ref': _ambito == 'todos' ? null : _ref,
         'torneo_id': datos.torneo?.id,
+        'imagenes': _imagenes,
       });
       await datos.recargar(); // se ve en la lista al momento
     }, ok: 'Aviso publicado');
@@ -75,6 +103,7 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
       if (ok) {
         _texto.clear();
         _fijar = false;
+        _imagenes.clear();
       }
     });
   }
@@ -103,7 +132,47 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 8),
+          Wrap(spacing: 10, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            for (final u in _imagenes)
+              Stack(clipBehavior: Clip.none, children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    color: MarbelColors.fondoAlto,
+                    width: 88,
+                    height: 88,
+                    child: Image.network(u, fit: BoxFit.contain),
+                  ),
+                ),
+                Positioned(
+                  top: -10,
+                  right: -10,
+                  child: IconButton.filled(
+                    tooltip: 'Quitar imagen',
+                    iconSize: 16,
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(backgroundColor: const Color(0xFFFF7A85)),
+                    onPressed: () {
+                      setState(() => _imagenes.remove(u));
+                      _borrarArchivos([u]);
+                    },
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+              ]),
+            if (_imagenes.length < 4)
+              OutlinedButton.icon(
+                onPressed: _subiendo ? null : _anadirImagen,
+                icon: _subiendo
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.add_photo_alternate_rounded),
+                label: Text(_imagenes.isEmpty ? 'Añadir imagen (opcional)' : 'Añadir otra (${_imagenes.length}/4)'),
+              ),
+          ]),
+          const SizedBox(height: 4),
+          const Text('Hasta 4 imágenes (escudos, carteles…), de menos de 5 MB. Se ven debajo del texto y se pueden ampliar.',
+              style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
+          const SizedBox(height: 12),
           Wrap(spacing: 12, runSpacing: 12, children: [
             SizedBox(
               width: 260,
@@ -157,7 +226,7 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
           Text(
             '• Partido de tu equipo a punto de empezar, gol, resultado final y cambios de campo u hora se muestran solos en «Para ti» a quien sigue al equipo.\n'
             '• Si un partido va con retraso, en «Partidos y resultados» aparece «Retraso detectado» con el botón «Avisar a seguidores».\n'
-            '• Las notificaciones push al móvil (con la app cerrada) necesitan conectar Firebase más adelante.',
+            '• Las notificaciones al móvil (con la app cerrada) llevan solo el texto; las imágenes se ven al abrir el aviso.',
             style: TextStyle(color: MarbelColors.texto2, height: 1.45),
           ),
         ]),
@@ -181,6 +250,10 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
                 ]),
                 const SizedBox(height: 6),
                 Text(a.texto, style: const TextStyle(height: 1.4)),
+                if (a.imagenes.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ImagenesAviso(a.imagenes, alto: 70),
+                ],
               ]),
             ),
             if (!_mesa) ...[
@@ -198,6 +271,7 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
                   if (await confirmar(context, '¿Borrar aviso?', 'Desaparecerá de la web y la app.', boton: 'Borrar') && context.mounted) {
                     await ejecutar(context, () async {
                       await db.from('avisos').delete().eq('id', a.id);
+                      await _borrarArchivos(a.imagenes);
                       await datos.recargar();
                     }, ok: 'Aviso borrado');
                   }
