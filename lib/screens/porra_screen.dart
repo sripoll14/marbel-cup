@@ -60,7 +60,7 @@ class _PorraScreenState extends State<PorraScreen> {
                 CabeceraMovil('La Porra',
                     derecha: sesion.perfil == null
                         ? null
-                        : Text(sesion.perfil!.nombreCorto, style: const TextStyle(color: MarbelColors.cian, fontWeight: FontWeight.w700))),
+                        : Text(sesion.perfil!.aliasVisible, style: const TextStyle(color: MarbelColors.cian, fontWeight: FontWeight.w700))),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(children: [
@@ -237,6 +237,14 @@ class _PrediccionState extends State<_Prediccion> {
   }
 
   Future<void> _guardar() async {
+    if (!(sesion.perfil?.puedeParticipar ?? false)) {
+      await sesion.recargarPerfil();
+      if (!mounted) return;
+      if (!(sesion.perfil?.puedeParticipar ?? false)) {
+        if (!await dialogoAlias(context)) return;
+        if (!mounted) return;
+      }
+    }
     setState(() => _guardando = true);
     try {
       await db.from('predicciones').delete().eq('liga_id', widget.ligaId).eq('usuario_id', sesion.usuario!.id);
@@ -315,6 +323,7 @@ class _PrediccionState extends State<_Prediccion> {
 
     final pendienteFinal = _fz.length < 2;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const AvisoAlias(),
       if (!ancho) ...[_Cierre(ligaId: widget.ligaId), const SizedBox(height: 14)],
       paso('1 · ¿Quién gana la liga?', '+3 pts',
           'Liga de ${equipos.length} equipos: cada uno juega 4 partidos y los 4 primeros pasan a semifinales.',
@@ -484,7 +493,7 @@ class _RankingState extends State<_Ranking> {
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(f.soyYo ? '${f.nombre} (tú)' : f.nombre, style: const TextStyle(fontWeight: FontWeight.w800)),
-                        Text(f.equipo, style: const TextStyle(color: MarbelColors.apagado, fontSize: 12)),
+                        if (f.equipo != null) Text(f.equipo!, style: const TextStyle(color: MarbelColors.apagado, fontSize: 12)),
                       ]),
                     ),
                     Text('${f.puntos}', style: MarbelText.titular(24, color: MarbelColors.cian).copyWith(fontStyle: FontStyle.normal)),
@@ -494,7 +503,7 @@ class _RankingState extends State<_Ranking> {
           },
         ),
         const SizedBox(height: 6),
-        const Text('Solo se muestra el nombre, la inicial del apellido y el equipo.',
+        const Text('Solo se muestra el alias de cada persona.',
             style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
       ]),
     );

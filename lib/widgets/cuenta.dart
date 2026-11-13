@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/datos.dart';
+import '../data/modelos.dart';
 import '../data/sesion.dart';
 import '../theme/app_theme.dart';
 import 'comunes.dart';
@@ -229,6 +231,8 @@ class _FormularioRegistroState extends State<FormularioRegistro> {
   final _apellidos = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
+  final _alias = TextEditingController();
+  String? _aliasServidor; // lo que dice la base de datos (cogido, no permitido...)
   String? _equipo; // '' = sin equipo
   bool _privacidad = false;
   bool _edad = false;
@@ -243,25 +247,38 @@ class _FormularioRegistroState extends State<FormularioRegistro> {
         'a': _apellidos.text.trim().isEmpty ? 'Escribe tus apellidos' : null,
         'e': validarEmail(_email.text),
         'p': validarPassword(_pass.text),
+        'al': validarAlias(_alias.text) ?? _aliasServidor,
         't': _equipo == null ? 'Elige tu equipo o «No pertenezco a ningún equipo»' : null,
         'ok': _privacidad ? null : 'Tienes que aceptar la política de privacidad',
         'edad': _edad ? null : 'Tienes que confirmarlo para crear la cuenta',
       };
 
   Future<void> _crear() async {
-    setState(() => _intentado = true);
+    setState(() {
+      _intentado = true;
+      _aliasServidor = null;
+    });
     if (_errores().values.any((e) => e != null)) return;
     setState(() {
       _cargando = true;
       _error = null;
     });
     try {
+      final problema = await sesion.problemaAlias(_alias.text);
+      if (problema != null) {
+        setState(() {
+          _aliasServidor = problema;
+          _cargando = false;
+        });
+        return;
+      }
       final confirmar = await sesion.registrar(
         nombre: _nombre.text,
         apellidos: _apellidos.text,
         email: _email.text,
         password: _pass.text,
         equipoId: _equipo == '' ? null : _equipo,
+        alias: _alias.text,
         mantener: _mantener,
       );
       TextInput.finishAutofillContext();
@@ -278,7 +295,7 @@ class _FormularioRegistroState extends State<FormularioRegistro> {
 
   @override
   void dispose() {
-    for (final c in [_nombre, _apellidos, _email, _pass]) {
+    for (final c in [_nombre, _apellidos, _email, _pass, _alias]) {
       c.dispose();
     }
     super.dispose();
@@ -317,6 +334,15 @@ class _FormularioRegistroState extends State<FormularioRegistro> {
                 ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: n), const SizedBox(width: 12), Expanded(child: a)])
                 : Column(children: [n, const SizedBox(height: 12), a]);
           }),
+          const SizedBox(height: 12),
+          Campo(
+            etiqueta: 'Alias',
+            controller: _alias,
+            error: err['al'],
+            autofill: const [AutofillHints.nickname],
+            ayuda: 'Es lo único que verán los demás, en La Porra y en los comentarios. '
+                'No pongas tu nombre real. De 3 a 20 letras o números.',
+          ),
           const SizedBox(height: 12),
           Campo(
             etiqueta: 'Email',
@@ -386,10 +412,12 @@ class _FormularioRegistroState extends State<FormularioRegistro> {
                       style: TextStyle(color: MarbelColors.cian, decoration: TextDecoration.underline, decorationColor: MarbelColors.cian)),
                 ),
               ),
-              const TextSpan(text: ' *. En el ranking solo se verá mi nombre, la inicial del apellido y mi equipo.'),
+              const TextSpan(text: ' *. En el ranking y en los comentarios solo se verá mi alias.'),
             ])),
           ),
           CasillaMantener(valor: _mantener, onCambio: (v) => setState(() => _mantener = v)),
+          const SizedBox(height: 4),
+          const Text(avisoModeracion, style: TextStyle(color: MarbelColors.apagado, fontSize: 12, height: 1.4)),
           if (_error != null) ...[
             const SizedBox(height: 6),
             Text(_error!, style: const TextStyle(color: Color(0xFFFF7A85), fontWeight: FontWeight.w600)),
@@ -435,5 +463,142 @@ class _Casilla extends StatelessWidget {
           child: Text(error!, style: const TextStyle(color: Color(0xFFFF7A85), fontSize: 13, fontWeight: FontWeight.w600)),
         ),
     ]);
+  }
+}
+
+/// Aviso que se enseña al crear la cuenta, al cambiar el alias y al comentar.
+const avisoModeracion = 'El personal del torneo se reserva el derecho de ocultar o eliminar cualquier comentario, '
+    'y de vetar cualquier alias, que considere ofensivo o fuera de lugar.';
+
+/// Comprobación rápida del alias (la definitiva la hace la base de datos).
+String? validarAlias(String a) {
+  final t = a.trim();
+  if (t.isEmpty) return 'Elige un alias';
+  if (t.characters.length < 3) return 'El alias tiene que tener al menos 3 caracteres';
+  if (t.characters.length > 20) return 'El alias puede tener como mucho 20 caracteres';
+  if (!RegExp(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñÇç0-9 ._-]+$').hasMatch(t)) {
+    return 'Usa solo letras, números, espacios, puntos, guiones o guiones bajos';
+  }
+  return null;
+}
+
+/// "dom 27 dic a las 18:30"
+String fechaLimite(DateTime d) => '${diaCorto(d).toLowerCase()} a las ${hhmm(d)}';
+
+/// Ventana para elegir o cambiar el alias. Devuelve true si se ha cambiado.
+Future<bool> dialogoAlias(BuildContext context) async {
+  final p = sesion.perfil;
+  final vetado = p?.aliasVetado ?? false;
+  final c = TextEditingController(text: vetado ? '' : (p?.alias ?? ''));
+  String? error;
+  var guardando = false;
+  final r = await showDialog<bool>(
+    context: context,
+    builder: (d) => StatefulBuilder(
+      builder: (d, set) {
+        Future<void> guardar() async {
+          final local = validarAlias(c.text);
+          if (local != null) {
+            set(() => error = local);
+            return;
+          }
+          set(() {
+            guardando = true;
+            error = null;
+          });
+          try {
+            await sesion.cambiarAlias(c.text);
+            if (d.mounted) Navigator.pop(d, true);
+          } catch (e) {
+            set(() {
+              guardando = false;
+              error = e is PostgrestException ? e.message : mensajeError(e);
+            });
+          }
+        }
+
+        return AlertDialog(
+          backgroundColor: MarbelColors.tarjeta,
+          title: Text(p?.alias == null ? 'Elige tu alias' : 'Cambiar alias'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (vetado) ...[
+                  Text('La organización ha vetado «${p!.alias}». Elige otro distinto.',
+                      style: const TextStyle(color: MarbelColors.medio, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 12),
+                ],
+                Campo(
+                  etiqueta: 'Alias',
+                  controller: c,
+                  error: error,
+                  autofill: const [AutofillHints.nickname],
+                  alEnviar: guardar,
+                  ayuda: 'Es lo único que verán los demás en La Porra y en los comentarios. No pongas tu nombre real.',
+                ),
+                const SizedBox(height: 10),
+                const Text(avisoModeracion, style: TextStyle(color: MarbelColors.apagado, fontSize: 12, height: 1.4)),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
+            BotonCian('Guardar', onTap: guardar, cargando: guardando),
+          ],
+        );
+      },
+    ),
+  );
+  c.dispose();
+  if (r == true && context.mounted) avisar(context, '✓ Alias guardado');
+  return r ?? false;
+}
+
+/// Aviso cuando falta el alias o la organización lo ha vetado.
+class AvisoAlias extends StatelessWidget {
+  const AvisoAlias({super.key, this.margen = const EdgeInsets.only(bottom: 14)});
+  final EdgeInsets margen;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: sesion,
+      builder: (context, _) {
+        final p = sesion.perfil;
+        if (p == null || (p.alias != null && !p.aliasVetado)) return const SizedBox.shrink();
+        final String texto;
+        if (p.alias == null) {
+          texto = 'Elige un alias para jugar a La Porra y comentar. Es lo único que verán los demás.';
+        } else if (p.aliasVencido) {
+          texto = 'La organización ha vetado tu alias «${p.alias}» y ha pasado el plazo para cambiarlo. '
+              'No puedes jugar a La Porra ni comentar hasta que elijas otro.';
+        } else {
+          texto = 'La organización ha vetado tu alias «${p.alias}» por considerarlo ofensivo o fuera de lugar. '
+              'Tienes hasta el ${fechaLimite(p.aliasLimite!)} para cambiarlo; si no, no podrás jugar a La Porra '
+              'ni comentar hasta que elijas otro.';
+        }
+        final color = p.alias == null ? MarbelColors.cian : MarbelColors.medio;
+        return Padding(
+          padding: margen,
+          child: Tarjeta(
+            padding: const EdgeInsets.all(14),
+            borde: color,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(p.alias == null ? Icons.badge_rounded : Icons.report_rounded, color: color),
+                const SizedBox(width: 10),
+                Expanded(child: Text(texto, style: const TextStyle(height: 1.4))),
+              ]),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: BotonCian(p.alias == null ? 'Elegir alias' : 'Cambiar alias', onTap: () => dialogoAlias(context)),
+              ),
+            ]),
+          ),
+        );
+      },
+    );
   }
 }

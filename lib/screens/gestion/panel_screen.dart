@@ -11,6 +11,7 @@ import '../../widgets/conexion.dart';
 import '../../widgets/marco_app.dart';
 import 'seccion_avisos.dart';
 import 'seccion_calendario.dart';
+import 'seccion_comentarios.dart';
 import 'seccion_equipos.dart';
 import 'seccion_galeria.dart';
 import 'seccion_partidos.dart';
@@ -32,6 +33,7 @@ final _apartados = [
   _Apartado('Torneos', Icons.emoji_events_rounded, {Rol.admin}, () => SeccionTorneos()),
   _Apartado('Equipos e inscripciones', Icons.shield_rounded, {Rol.admin}, () => SeccionEquipos()),
   _Apartado('Calendario y sedes', Icons.calendar_month_rounded, {Rol.admin}, () => SeccionCalendario()),
+  _Apartado('Comentarios', Icons.forum_rounded, {Rol.admin, Rol.comunicacion}, () => SeccionComentarios()),
   _Apartado('Galería', Icons.photo_library_rounded, {Rol.admin, Rol.comunicacion}, () => SeccionGaleria()),
   _Apartado('Personal y permisos', Icons.admin_panel_settings_rounded, {Rol.admin}, () => SeccionPersonal()),
 ];

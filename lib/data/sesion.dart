@@ -96,6 +96,7 @@ class Sesion extends ChangeNotifier {
     required String email,
     required String password,
     required String? equipoId,
+    required String alias,
     required bool mantener,
   }) async {
     await _guardarMantener(mantener);
@@ -107,6 +108,7 @@ class Sesion extends ChangeNotifier {
         'nombre': nombre.trim(),
         'apellidos': apellidos.trim(),
         'equipo_id': equipoId ?? '',
+        'alias': alias.trim(),
       },
     );
     return r.session == null;
@@ -135,6 +137,17 @@ class Sesion extends ChangeNotifier {
     final u = usuario;
     if (u == null) return;
     await db.from('perfiles').update({'equipo_id': equipoId}).eq('id', u.id);
+    await recargarPerfil();
+  }
+
+  /// null si el alias se puede usar; si no, el motivo.
+  Future<String?> problemaAlias(String alias) async {
+    final r = await db.rpc('alias_disponible', params: {'p_alias': alias.trim()});
+    return r as String?;
+  }
+
+  Future<void> cambiarAlias(String alias) async {
+    await db.rpc('cambiar_alias', params: {'p_alias': alias.trim()});
     await recargarPerfil();
   }
 
@@ -170,7 +183,7 @@ String? validarEmail(String e) {
 
 /// Traduce los errores más comunes de Supabase.
 String mensajeError(Object e) {
-  final s = e is AuthException ? e.message : e.toString();
+  final s = e is AuthException ? e.message : (e is PostgrestException ? e.message : e.toString());
   final l = s.toLowerCase();
   if (l.contains('invalid login')) return 'Email o contraseña incorrectos.';
   if (l.contains('email not confirmed')) {

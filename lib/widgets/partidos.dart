@@ -4,6 +4,7 @@ import '../data/datos.dart';
 import '../data/favoritos.dart';
 import '../data/modelos.dart';
 import '../theme/app_theme.dart';
+import 'comentarios.dart';
 import 'comunes.dart';
 
 /// Texto y colores del estado de un partido.
@@ -24,9 +25,12 @@ import 'comunes.dart';
 
 /// Tarjeta de un partido: hora, categoría, equipos, marcador, sede y estado.
 class TarjetaPartido extends StatelessWidget {
-  const TarjetaPartido(this.p, {super.key, this.compacta = false});
+  const TarjetaPartido(this.p, {super.key, this.compacta = false, this.tocable = true});
   final Partido p;
   final bool compacta;
+
+  /// Al tocarla se abre el partido (goles y comentarios).
+  final bool tocable;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +75,7 @@ class TarjetaPartido extends StatelessWidget {
     }
 
     final ganador = p.ganadorId;
-    return Tarjeta(
+    final tarjeta = Tarjeta(
       padding: const EdgeInsets.all(14),
       borde: fav ? MarbelColors.medio : null,
       child: Column(
@@ -88,6 +92,10 @@ class TarjetaPartido extends StatelessWidget {
                         color: MarbelColors.apagado, fontSize: 12, fontWeight: FontWeight.w700)),
               ),
               Pastilla(est, fondo: estFondo, color: estColor, tamano: 11),
+              if (tocable) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.chat_bubble_outline_rounded, size: 16, color: MarbelColors.apagado),
+              ],
             ],
           ),
           const SizedBox(height: 10),
@@ -133,6 +141,15 @@ class TarjetaPartido extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+    if (!tocable) return tarjeta;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => abrirPartido(context, p.id),
+        child: tarjeta,
       ),
     );
   }
@@ -391,4 +408,58 @@ class CuadroFinal extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Ficha de un partido: marcador en directo, goles y comentarios.
+Future<void> abrirPartido(BuildContext context, String partidoId) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: MarbelColors.fondo,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (c) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (c, scroll) => ListenableBuilder(
+        listenable: datos,
+        builder: (c, _) {
+          final p = datos.partidos.where((x) => x.id == partidoId).firstOrNull;
+          if (p == null) return const Center(child: Text('Este partido ya no existe.'));
+          final goles = datos.goles.where((g) => g.partidoId == p.id).toList()
+            ..sort((a, b) => (a.minuto ?? 999).compareTo(b.minuto ?? 999));
+          return ListView(controller: scroll, padding: const EdgeInsets.fromLTRB(16, 10, 16, 32), children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(color: MarbelColors.borde, borderRadius: BorderRadius.circular(3)),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TarjetaPartido(p, tocable: false),
+            if (goles.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Text('GOLES', style: MarbelText.etiqueta(color: MarbelColors.apagado)),
+              const SizedBox(height: 6),
+              for (final g in goles)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Text(
+                    '⚽ ${g.jugador}${g.minuto == null ? '' : " ${g.minuto}'"} · ${datos.nombreEquipo(g.equipoId)}',
+                    style: const TextStyle(color: MarbelColors.texto2),
+                  ),
+                ),
+            ],
+            const SizedBox(height: 22),
+            Text('COMENTARIOS DEL PARTIDO', style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
+            const SizedBox(height: 12),
+            Comentarios(partidoId: p.id),
+          ]);
+        },
+      ),
+    ),
+  );
 }

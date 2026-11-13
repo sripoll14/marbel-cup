@@ -21,6 +21,7 @@ Tu `env.json` y la carpeta oculta `.git` no se tocan, porque no van en el zip. P
 3. Debe acabar en *Success. No rows returned*. Si lo ejecutas dos veces no pasa nada.
 4. Haz lo mismo con `supabase/05_varios_roles.sql` (permite dar varios roles a una persona, por ejemplo Mesa de sede + Comunicación).
 5. Y con `supabase/07_calendario_varias_sedes.sql` (permite que una liga juegue en varias sedes a la vez y en varios días). El `06` es el de las notificaciones: va en `NOTIFICACIONES.md`.
+6. Y con `supabase/08_comentarios.sql` (alias públicos, y comentarios con respuestas y reacciones en la página del torneo y en cada partido, con moderación).
 
 Esto añade:
 
@@ -116,10 +117,12 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 - [ ] Partidos: filtros por día y sede; un partido "En juego" aparece en Inicio al momento.
 - [ ] Equipos: seguir un equipo (☆), y su ficha con partidos y racha.
 - [ ] Estadísticas: goleadores como "Nombre I. · Equipo".
-- [ ] La Porra: crear cuenta, predecir, ver el ranking. **Autorrelleno de contraseñas:** al crear cuenta, el móvil debe ofrecer una contraseña segura y guardarla; al entrar, debe rellenarla sola; al cambiarla en "¿Has olvidado tu contraseña?", debe actualizar la guardada.
+- [ ] La Porra: crear cuenta (con alias), predecir, ver el ranking (solo salen alias). **Autorrelleno de contraseñas:** al crear cuenta, el móvil debe ofrecer una contraseña segura y guardarla; al entrar, debe rellenarla sola; al cambiarla en "¿Has olvidado tu contraseña?", debe actualizar la guardada.
 - [ ] "Mantener sesión iniciada": si lo desmarcas, al cerrar y volver a abrir te pide entrar otra vez.
 - [ ] Recuperar contraseña: llega el email y el enlace abre "Elige una contraseña nueva".
 - [ ] Panel: cambiar un resultado en el ordenador y verlo cambiar en el móvil sin recargar.
+- [ ] Comentarios: escribir, responder, reaccionar (👏 ⚽ ❤️ 😂) y verlo en otro móvil sin recargar.
+- [ ] Alias: vetar uno desde Panel → Comentarios → Alias; en público sale «Alias en revisión» y esa persona ve el aviso con el plazo.
 - [ ] Pie: los enlaces de Privacidad, Aviso legal y Cookies abren sus páginas.
 
 ## Lo que queda para más adelante
@@ -133,3 +136,11 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 - **Mesa de sede (Partidos y resultados):** sin cobertura se puede seguir apuntando el marcador, los goles, el estado, el campo y el retraso. Se ve al momento y arriba sale «N cambios sin enviar». Se envían solos, en orden, en cuanto vuelve la conexión (no cierres la app hasta que desaparezca el aviso si puedes; si la cierras, se envían al volver a abrirla). El resto del panel (equipos, calendario, avisos…) sí necesita conexión.
 - **Antes de cada torneo:** Supabase pausa los proyectos gratuitos tras una semana sin uso. Entra en supabase.com un par de días antes y la misma mañana, y comprueba que el proyecto está activo (si pone *Paused*, pulsa *Restore*).
 - **Plan B:** acta en papel en cada mesa y al menos dos personas con acceso por sede.
+
+## Alias y comentarios
+
+- **En público solo se ve el alias** (ranking de La Porra y comentarios). Nombre, apellidos, email y equipo solo los ve el personal.
+- **Al crear la cuenta** se elige el alias: de 3 a 20 letras o números, único y sin palabras del filtro. Se puede cambiar en **Más → Alias**.
+- **Las cuentas que ya existían** no tienen alias: la app les pide uno antes de comentar o guardar la porra.
+- **Vetar un alias:** Panel → **Comentarios → Alias** (o el menú ⋮ de un comentario). En público sale «Alias en revisión» y la persona tiene **24 horas** para cambiarlo. Si no lo cambia, no puede jugar a La Porra ni comentar hasta que elija otro. Avísale con **Enviar email** o **Copiar mensaje** (para WhatsApp). Al cambiarlo, el veto se quita solo.
+- **Comentarios:** con palabras del filtro, o con 3 denuncias, quedan pendientes hasta revisarlos. Nada se borra de verdad: queda como prueba con su autor real.

@@ -5,6 +5,7 @@ import '../data/contenido.dart';
 import '../data/datos.dart';
 import '../data/modelos.dart';
 import '../theme/app_theme.dart';
+import '../widgets/comentarios.dart';
 import '../widgets/comunes.dart';
 import '../widgets/mapa_sedes.dart';
 import '../widgets/marco_app.dart';
@@ -299,6 +300,12 @@ class _TorneoScreenState extends State<TorneoScreen> {
               ]),
             ),
           ),
+        hueco,
+
+        // Comentarios del torneo (para escribir hace falta cuenta)
+        const TituloSeccion(etiqueta: 'Escribe a la Marea Azul', titulo: 'Comentarios'),
+        const SizedBox(height: 14),
+        Comentarios(key: ValueKey(datos.torneo?.id), torneoId: datos.torneo?.id),
       ];
 
       if (!ancho) {

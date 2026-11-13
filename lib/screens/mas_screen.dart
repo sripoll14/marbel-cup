@@ -85,6 +85,26 @@ class _MasScreenState extends State<MasScreen> {
                         ),
                       ]),
                       const SizedBox(height: 12),
+                      Row(children: [
+                        const Icon(Icons.badge_rounded, color: MarbelColors.cian, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text.rich(TextSpan(children: [
+                            const TextSpan(text: 'Alias: ', style: TextStyle(color: MarbelColors.apagado)),
+                            TextSpan(text: p.alias ?? 'sin elegir', style: const TextStyle(fontWeight: FontWeight.w800)),
+                            if (p.aliasVetado)
+                              const TextSpan(text: ' · vetado', style: TextStyle(color: MarbelColors.medio, fontWeight: FontWeight.w700)),
+                          ])),
+                        ),
+                        TextButton(
+                          onPressed: () => dialogoAlias(context),
+                          child: Text(p.alias == null ? 'Elegir' : 'Cambiar'),
+                        ),
+                      ]),
+                      const Text('Es lo único que ven los demás en La Porra y en los comentarios.',
+                          style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
+                      const AvisoAlias(margen: EdgeInsets.only(top: 10)),
+                      const SizedBox(height: 12),
                       Wrap(spacing: 8, runSpacing: 8, children: [
                         BotonContorno('Cerrar sesión', onTap: () => sesion.salir()),
                         TextButton(
@@ -101,7 +121,7 @@ class _MasScreenState extends State<MasScreen> {
                       ? 'Todo el torneo'
                       : [
                           if (p.tiene(Rol.mesa)) 'Resultados y campos${sede == null ? '' : ' de ${sede.nombre}'}',
-                          if (p.tiene(Rol.comunicacion)) 'avisos y galería' else 'avisos',
+                          if (p.tiene(Rol.comunicacion)) 'avisos, comentarios y galería' else 'avisos',
                         ].join(', ').replaceFirstMapped(RegExp('^.'), (m) => m[0]!.toUpperCase())),
             opcion(Icons.notifications_rounded, 'Avisos y notificaciones', () => context.go('/avisos')),
             opcion(Icons.bar_chart_rounded, 'Estadísticas', () => context.go('/estadisticas')),

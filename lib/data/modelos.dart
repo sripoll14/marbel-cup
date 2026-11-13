@@ -336,9 +336,31 @@ class Perfil {
           if (m['roles'] == null) rolDe(m['rol'] as String?),
         }..remove(Rol.usuario),
         sedeId = _s(m['sede_id']),
-        email = _s(m['email']);
+        email = _s(m['email']),
+        comentariosBloqueado = m['comentarios_bloqueado'] == true,
+        alias = _s(m['alias']),
+        aliasVetadoEn = m['alias_vetado_en'] == null ? null : DateTime.parse(m['alias_vetado_en'] as String).toLocal();
 
   final String id;
+
+  /// Lo único que se ve en público (ranking de La Porra y comentarios).
+  final String? alias;
+
+  /// Si el personal ha vetado el alias: cuándo. Hay 24 h para cambiarlo.
+  final DateTime? aliasVetadoEn;
+
+  DateTime? get aliasLimite => aliasVetadoEn?.add(const Duration(hours: 24));
+  bool get aliasVetado => aliasVetadoEn != null;
+  bool get aliasVencido => aliasLimite != null && DateTime.now().isAfter(aliasLimite!);
+
+  /// Puede jugar a La Porra y comentar.
+  bool get puedeParticipar => alias != null && !aliasVencido;
+
+  /// Como lo ven los demás.
+  String get aliasVisible => aliasVetado ? 'Alias en revisión' : (alias ?? 'Sin alias');
+
+  /// No puede escribir comentarios (lo decide el personal).
+  final bool comentariosBloqueado;
   final String nombre;
   final String apellidos;
   final String? equipoId;
@@ -375,13 +397,13 @@ class FilaRanking {
   FilaRanking.fromMap(Map<String, dynamic> m)
       : pos = _i(m['pos']) ?? 0,
         nombre = m['nombre'] as String? ?? '',
-        equipo = m['equipo'] as String? ?? '',
+        equipo = _s(m['equipo']),
         puntos = _i(m['puntos']) ?? 0,
         soyYo = m['soy_yo'] as bool? ?? false;
 
   final int pos;
   final String nombre;
-  final String equipo;
+  final String? equipo;
   final int puntos;
   final bool soyYo;
 }
@@ -417,4 +439,43 @@ String cuando(DateTime d) {
   if (soloDia(d) == soloDia(ahora)) return hhmm(d);
   if (soloDia(d) == soloDia(ahora.subtract(const Duration(days: 1)))) return 'Ayer';
   return diaCorto(d);
+}
+
+/// Comentario de la página del torneo o de un partido.
+class Comentario {
+  Comentario.fromMap(Map<String, dynamic> m)
+      : id = m['id'] as String,
+        partidoId = _s(m['partido_id']),
+        usuarioId = _s(m['usuario_id']),
+        respuestaA = _s(m['respuesta_a']),
+        autor = m['autor'] as String? ?? '',
+        reacciones = {
+          for (final e in ((m['reacciones'] as Map?) ?? const {}).entries) e.key as String: (e.value as num).toInt(),
+        },
+        texto = m['texto'] as String? ?? '',
+        estado = m['estado'] as String? ?? 'publicado',
+        motivo = _s(m['motivo']),
+        creado = DateTime.parse(m['creado'] as String).toLocal();
+  final String id;
+  final String? partidoId;
+  final String? usuarioId;
+  /// Comentario principal al que responde (null si no es una respuesta).
+  final String? respuestaA;
+  final String autor;
+
+  /// {"👏": 3, "⚽": 1}
+  final Map<String, int> reacciones;
+  final String texto;
+
+  /// publicado · pendiente (filtro o denuncias) · oculto (personal) · borrado (autor)
+  final String estado;
+  final String? motivo;
+  final DateTime creado;
+
+  String get iniciales {
+    final p = autor.replaceAll(RegExp(r'[._-]'), ' ').split(' ').where((x) => x.isNotEmpty).toList();
+    if (p.isEmpty) return '?';
+    if (p.length == 1) return p.first.characters.take(2).toString().toUpperCase();
+    return p.take(2).map((x) => x.characters.first.toUpperCase()).join();
+  }
 }
