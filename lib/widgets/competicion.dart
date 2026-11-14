@@ -24,10 +24,12 @@ class SelectorLiga extends StatelessWidget {
       final c = datos.categoria(l.categoriaId);
       if (c != null && !cats.any((x) => x.id == c.id)) cats.add(c);
     }
-    final niveles = ligas
-        .where((l) => l.categoriaId == actual.categoriaId)
-        .map((l) => Nivel.de(l.nivelId))
-        .toList();
+    final niveles = <Nivel>[];
+    for (final l in ligas.where((l) => l.categoriaId == actual.categoriaId)) {
+      final n = Nivel.de(l.nivelId);
+      if (!niveles.any((x) => x.id == n.id)) niveles.add(n);
+    }
+    final grupos = datos.gruposDe(actual);
 
     Widget desplegable<T>(String etiqueta, T valor, List<(T, String)> opciones, ValueChanged<T> cambio) {
       return Column(
@@ -75,6 +77,8 @@ class SelectorLiga extends StatelessWidget {
             final l = ligas.firstWhere((x) => x.categoriaId == actual.categoriaId && x.nivelId == n);
             onCambio(l.id);
           }),
+        if (grupos.length > 1)
+          desplegable<String>('Grupo', actual.id, [for (final g in grupos) (g.id, 'Grupo ${g.grupo ?? ''}')], onCambio),
       ],
     );
   }

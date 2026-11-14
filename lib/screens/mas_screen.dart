@@ -101,7 +101,7 @@ class _MasScreenState extends State<MasScreen> {
                           child: Text(p.alias == null ? 'Elegir' : 'Cambiar'),
                         ),
                       ]),
-                      const Text('Es lo único que ven los demás en La Porra y en los comentarios.',
+                      const Text('Es lo único que ven los demás en el ranking de La Porra.',
                           style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
                       const AvisoAlias(margen: EdgeInsets.only(top: 10)),
                       const SizedBox(height: 12),
@@ -121,7 +121,7 @@ class _MasScreenState extends State<MasScreen> {
                       ? 'Todo el torneo'
                       : [
                           if (p.tiene(Rol.mesa)) 'Resultados y campos${sede == null ? '' : ' de ${sede.nombre}'}',
-                          if (p.tiene(Rol.comunicacion)) 'avisos, comentarios y galería' else 'avisos',
+                          if (p.tiene(Rol.comunicacion)) 'avisos, alias y galería' else 'avisos',
                         ].join(', ').replaceFirstMapped(RegExp('^.'), (m) => m[0]!.toUpperCase())),
             opcion(Icons.notifications_rounded, 'Avisos y notificaciones', () => context.go('/avisos')),
             opcion(Icons.bar_chart_rounded, 'Estadísticas', () => context.go('/estadisticas')),

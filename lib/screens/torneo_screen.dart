@@ -302,10 +302,10 @@ class _TorneoScreenState extends State<TorneoScreen> {
           ),
         hueco,
 
-        // Comentarios del torneo (para escribir hace falta cuenta)
-        const TituloSeccion(etiqueta: 'Escribe a la Marea Azul', titulo: 'Comentarios'),
+        // Opiniones: solo las lee administración (hace falta cuenta)
+        const TituloSeccion(etiqueta: 'Cuéntanos qué te ha parecido', titulo: 'Déjanos tu opinión'),
         const SizedBox(height: 14),
-        Comentarios(key: ValueKey(datos.torneo?.id), torneoId: datos.torneo?.id),
+        const DejanosTuOpinion(),
       ];
 
       if (!ancho) {

@@ -4,7 +4,6 @@ import '../data/datos.dart';
 import '../data/favoritos.dart';
 import '../data/modelos.dart';
 import '../theme/app_theme.dart';
-import 'comentarios.dart';
 import 'comunes.dart';
 
 /// Texto y colores del estado de un partido.
@@ -29,7 +28,7 @@ class TarjetaPartido extends StatelessWidget {
   final Partido p;
   final bool compacta;
 
-  /// Al tocarla se abre el partido (goles y comentarios).
+  /// Al tocarla se abre el partido (marcador y goles).
   final bool tocable;
 
   @override
@@ -83,7 +82,7 @@ class TarjetaPartido extends StatelessWidget {
         children: [
           Row(
             children: [
-              Pastilla.nivel(nivel, texto: datos.nombreLiga(p.ligaId), tamano: 11),
+              Pastilla.nivel(nivel, texto: datos.nombreLigaPartido(p), tamano: 11),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(fase,
@@ -93,8 +92,8 @@ class TarjetaPartido extends StatelessWidget {
               ),
               Pastilla(est, fondo: estFondo, color: estColor, tamano: 11),
               if (tocable) ...[
-                const SizedBox(width: 6),
-                const Icon(Icons.chat_bubble_outline_rounded, size: 16, color: MarbelColors.apagado),
+                const SizedBox(width: 2),
+                const Icon(Icons.chevron_right_rounded, size: 18, color: MarbelColors.apagado),
               ],
             ],
           ),
@@ -323,7 +322,8 @@ class CuadroFinal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ps = datos.partidosDeLiga(ligaId);
+    final ps = datos.partidosDeLiga(datos.ligaFaseFinal(ligaId));
+    final conjunta = datos.enFaseConjunta(ligaId);
     Partido? de(Fase f, [int? j]) =>
         ps.where((p) => p.fase == f && (j == null || p.jornada == j)).firstOrNull;
     final s1 = de(Fase.semifinal, 1), s2 = de(Fase.semifinal, 2);
@@ -351,9 +351,9 @@ class CuadroFinal extends StatelessWidget {
 
     final semis = Column(
       children: [
-        CruceFinal(titulo: 'Semi 1 · 1º vs 4º', partido: s1),
+        CruceFinal(titulo: conjunta ? 'Semifinal 1' : 'Semi 1 · 1º vs 4º', partido: s1),
         const SizedBox(height: 12),
-        CruceFinal(titulo: 'Semi 2 · 2º vs 3º', partido: s2),
+        CruceFinal(titulo: conjunta ? 'Semifinal 2' : 'Semi 2 · 2º vs 3º', partido: s2),
       ],
     );
     final finales = Column(
@@ -379,10 +379,19 @@ class CuadroFinal extends StatelessWidget {
       ],
     );
 
+    final avisoConjunta = conjunta
+        ? const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text('Fase final conjunta de todos los grupos de esta categoría y nivel.',
+                style: TextStyle(color: MarbelColors.cian, fontWeight: FontWeight.w700)),
+          )
+        : const SizedBox.shrink();
+
     if (!esAncho(context)) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          avisoConjunta,
           Text('SEMIFINALES', style: MarbelText.etiqueta(color: MarbelColors.apagado)),
           const SizedBox(height: 8),
           semis,
@@ -395,7 +404,9 @@ class CuadroFinal extends StatelessWidget {
         ],
       );
     }
-    return Row(
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      avisoConjunta,
+      Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(child: semis),
@@ -406,11 +417,12 @@ class CuadroFinal extends StatelessWidget {
         const SizedBox(width: 24),
         SizedBox(width: 200, child: copa),
       ],
-    );
+    ),
+    ]);
   }
 }
 
-/// Ficha de un partido: marcador en directo, goles y comentarios.
+/// Ficha de un partido: marcador en directo y goles.
 Future<void> abrirPartido(BuildContext context, String partidoId) {
   return showModalBottomSheet<void>(
     context: context,
@@ -453,10 +465,6 @@ Future<void> abrirPartido(BuildContext context, String partidoId) {
                   ),
                 ),
             ],
-            const SizedBox(height: 22),
-            Text('COMENTARIOS DEL PARTIDO', style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
-            const SizedBox(height: 12),
-            Comentarios(partidoId: p.id),
           ]);
         },
       ),

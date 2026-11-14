@@ -340,7 +340,7 @@ class _FormularioRegistroState extends State<FormularioRegistro> {
             controller: _alias,
             error: err['al'],
             autofill: const [AutofillHints.nickname],
-            ayuda: 'Es lo único que verán los demás, en La Porra y en los comentarios. '
+            ayuda: 'Es lo único que verán los demás, en el ranking de La Porra. '
                 'No pongas tu nombre real. De 3 a 20 letras o números.',
           ),
           const SizedBox(height: 12),
@@ -412,7 +412,7 @@ class _FormularioRegistroState extends State<FormularioRegistro> {
                       style: TextStyle(color: MarbelColors.cian, decoration: TextDecoration.underline, decorationColor: MarbelColors.cian)),
                 ),
               ),
-              const TextSpan(text: ' *. En el ranking y en los comentarios solo se verá mi alias.'),
+              const TextSpan(text: ' *. En el ranking de La Porra solo se verá mi alias.'),
             ])),
           ),
           CasillaMantener(valor: _mantener, onCambio: (v) => setState(() => _mantener = v)),
@@ -466,9 +466,9 @@ class _Casilla extends StatelessWidget {
   }
 }
 
-/// Aviso que se enseña al crear la cuenta, al cambiar el alias y al comentar.
-const avisoModeracion = 'El personal del torneo se reserva el derecho de ocultar o eliminar cualquier comentario, '
-    'y de vetar cualquier alias, que considere ofensivo o fuera de lugar.';
+/// Aviso que se enseña al crear la cuenta y al cambiar el alias.
+const avisoModeracion = 'El personal del torneo se reserva el derecho de vetar cualquier alias '
+    'que considere ofensivo o fuera de lugar.';
 
 /// Comprobación rápida del alias (la definitiva la hace la base de datos).
 String? validarAlias(String a) {
@@ -535,7 +535,7 @@ Future<bool> dialogoAlias(BuildContext context) async {
                   error: error,
                   autofill: const [AutofillHints.nickname],
                   alEnviar: guardar,
-                  ayuda: 'Es lo único que verán los demás en La Porra y en los comentarios. No pongas tu nombre real.',
+                  ayuda: 'Es lo único que verán los demás en el ranking de La Porra. No pongas tu nombre real.',
                 ),
                 const SizedBox(height: 10),
                 const Text(avisoModeracion, style: TextStyle(color: MarbelColors.apagado, fontSize: 12, height: 1.4)),
@@ -569,14 +569,14 @@ class AvisoAlias extends StatelessWidget {
         if (p == null || (p.alias != null && !p.aliasVetado)) return const SizedBox.shrink();
         final String texto;
         if (p.alias == null) {
-          texto = 'Elige un alias para jugar a La Porra y comentar. Es lo único que verán los demás.';
+          texto = 'Elige un alias para jugar a La Porra. Es lo único que verán los demás.';
         } else if (p.aliasVencido) {
           texto = 'La organización ha vetado tu alias «${p.alias}» y ha pasado el plazo para cambiarlo. '
-              'No puedes jugar a La Porra ni comentar hasta que elijas otro.';
+              'No puedes jugar a La Porra hasta que elijas otro.';
         } else {
           texto = 'La organización ha vetado tu alias «${p.alias}» por considerarlo ofensivo o fuera de lugar. '
               'Tienes hasta el ${fechaLimite(p.aliasLimite!)} para cambiarlo; si no, no podrás jugar a La Porra '
-              'ni comentar hasta que elijas otro.';
+              'hasta que elijas otro.';
         }
         final color = p.alias == null ? MarbelColors.cian : MarbelColors.medio;
         return Padding(

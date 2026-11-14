@@ -283,8 +283,10 @@ class Datos extends ChangeNotifier {
       final ca = categoria(a.categoriaId)?.orden ?? 0;
       final cb = categoria(b.categoriaId)?.orden ?? 0;
       if (ca != cb) return ca.compareTo(cb);
-      return Nivel.todos.indexWhere((n) => n.id == a.nivelId)
-          .compareTo(Nivel.todos.indexWhere((n) => n.id == b.nivelId));
+      final na = Nivel.todos.indexWhere((n) => n.id == a.nivelId);
+      final nb = Nivel.todos.indexWhere((n) => n.id == b.nivelId);
+      if (na != nb) return na.compareTo(nb);
+      return (a.grupo ?? '').compareTo(b.grupo ?? '');
     });
     return l;
   }
@@ -293,15 +295,35 @@ class Datos extends ChangeNotifier {
       .where((l) => l.categoriaId == categoriaId && l.nivelId == nivelId)
       .firstOrNull;
 
-  /// "Benjamín 1º · Medio"
-  String nombreLiga(String ligaId, {bool corto = true}) {
+  /// "Benjamín 1º · Medio", o "Benjamín 1º · Medio · Grupo A" si hay grupos.
+  String nombreLiga(String ligaId, {bool corto = true, bool sinGrupo = false}) {
     final l = liga(ligaId);
     if (l == null) return '';
     final c = categoria(l.categoriaId);
     final n = Nivel.de(l.nivelId);
     final cat = corto ? (c?.corto ?? '') : (c?.nombre ?? '');
-    return n.id == 'femenino' ? cat : '$cat · ${n.nombre}';
+    final base = n.id == 'femenino' ? cat : '$cat · ${n.nombre}';
+    return l.grupo == null || sinGrupo ? base : '$base · Grupo ${l.grupo}';
   }
+
+  /// Liga donde se juega la fase final (la propia, o la del grupo que tiene
+  /// la fase final conjunta).
+  String ligaFaseFinal(String ligaId) => liga(ligaId)?.finalEn ?? ligaId;
+
+  /// ¿Esta liga tiene la fase final conjunta de varios grupos?
+  bool tieneFaseConjunta(String ligaId) => ligas.any((l) => l.finalEn == ligaId);
+
+  /// ¿Esta liga juega una fase final conjunta (en ella o en otro grupo)?
+  bool enFaseConjunta(String ligaId) => liga(ligaId)?.finalEn != null || tieneFaseConjunta(ligaId);
+
+  /// Nombre de la liga para un partido. En la fase final conjunta no se pone el grupo.
+  String nombreLigaPartido(Partido p, {bool corto = true}) =>
+      nombreLiga(p.ligaId, corto: corto, sinGrupo: p.fase != Fase.liga && tieneFaseConjunta(p.ligaId));
+
+  /// Ligas de la misma categoría y nivel (los grupos), en orden.
+  List<Liga> gruposDe(Liga l) => ligasActuales
+      .where((x) => x.categoriaId == l.categoriaId && x.nivelId == l.nivelId)
+      .toList();
 
   Nivel nivelDeLiga(String ligaId) => Nivel.de(liga(ligaId)?.nivelId);
 

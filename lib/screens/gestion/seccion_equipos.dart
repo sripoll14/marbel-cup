@@ -100,6 +100,11 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
     }
     String? cat;
     String? nivel;
+    String? grupo; // id de la liga elegida, o 'nuevo'
+    List<Liga> grupos() => datos.ligas
+        .where((l) => l.torneoId == t.id && l.categoriaId == cat && l.nivelId == nivel)
+        .toList()
+      ..sort((a, b) => (a.grupo ?? '').compareTo(b.grupo ?? ''));
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => StatefulBuilder(
@@ -115,6 +120,7 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
                 opciones: [for (final x in datos.categorias) (x.id, x.nombre)],
                 onCambio: (v) => set(() {
                   cat = v;
+                  grupo = null;
                   if (datos.categoria(v)?.femenina ?? false) nivel = 'femenino';
                 }),
               ),
@@ -123,8 +129,29 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
                 etiqueta: 'Nivel',
                 valor: nivel,
                 opciones: [for (final n in Nivel.todos) (n.id, n.nombre)],
-                onCambio: (v) => set(() => nivel = v),
+                onCambio: (v) => set(() {
+                  nivel = v;
+                  grupo = null;
+                }),
               ),
+              if (cat != null && nivel != null && grupos().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Desplegable<String>(
+                  etiqueta: 'Grupo',
+                  valor: grupo ?? grupos().first.id,
+                  opciones: [
+                    for (final g in grupos()) (g.id, g.grupo == null ? 'Grupo único (${datos.equiposDeLiga[g.id]?.length ?? 0} equipos)' : 'Grupo ${g.grupo} (${datos.equiposDeLiga[g.id]?.length ?? 0} equipos)'),
+                    ('nuevo', grupos().length == 1 && grupos().first.grupo == null ? 'Dividir: crear grupo B' : 'Crear un grupo nuevo'),
+                  ],
+                  onCambio: (v) => set(() => grupo = v),
+                ),
+                if (grupo == 'nuevo' && grupos().length == 1 && grupos().first.grupo == null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text('La liga que ya existe pasará a ser el grupo A, y este equipo irá al grupo B.',
+                        style: TextStyle(color: MarbelColors.medio, fontSize: 12)),
+                  ),
+              ],
               const SizedBox(height: 10),
               Text('En ${t.nombre}. Si la liga no existe, se crea.', style: const TextStyle(color: MarbelColors.apagado, fontSize: 12)),
             ]),
@@ -137,8 +164,14 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
       ),
     );
     if (ok != true || cat == null || nivel == null || !mounted) return;
+    final existentes = grupos();
     await ejecutar(context, () async {
-      var liga = datos.ligas.where((l) => l.torneoId == t.id && l.categoriaId == cat && l.nivelId == nivel).firstOrNull?.id;
+      String? liga;
+      if (grupo == 'nuevo') {
+        liga = await db.rpc('nuevo_grupo', params: {'p_torneo': t.id, 'p_categoria': cat, 'p_nivel': nivel}) as String;
+      } else {
+        liga = grupo ?? existentes.firstOrNull?.id;
+      }
       liga ??= (await db
           .from('ligas')
           .insert({'torneo_id': t.id, 'categoria_id': cat, 'nivel_id': nivel})

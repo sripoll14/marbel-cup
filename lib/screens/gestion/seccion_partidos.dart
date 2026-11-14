@@ -151,7 +151,7 @@ class _EditorPartido extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Wrap(spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
           Text(hhmm(p.horaReal), style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
-          Pastilla.nivel(datos.nivelDeLiga(p.ligaId), texto: datos.nombreLiga(p.ligaId)),
+          Pastilla.nivel(datos.nivelDeLiga(p.ligaId), texto: datos.nombreLigaPartido(p)),
           Text(switch (p.fase) {
             Fase.liga => 'Liga · J${p.jornada ?? ''}',
             Fase.semifinal => 'Semifinal ${p.jornada ?? ''}',
@@ -226,6 +226,12 @@ class _EditorPartido extends StatelessWidget {
               onPressed: () => _editarHora(context),
               icon: const Icon(Icons.edit_calendar_rounded, size: 18),
               label: const Text('Hora y sede'),
+            ),
+          if (admin && p.fase != Fase.liga)
+            TextButton.icon(
+              onPressed: () => _cambiarEquipos(context),
+              icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+              label: const Text('Cambiar equipos'),
             ),
         ]),
         const SizedBox(height: 14),
@@ -315,6 +321,65 @@ class _EditorPartido extends StatelessWidget {
     if (partes.length == 1) return nombre;
     final ini = partes[1].replaceAll('.', '');
     return ini.isEmpty ? nombre : '$nombre ${ini[0].toUpperCase()}.';
+  }
+
+  /// Fase final a mano: elegir (o cambiar) los dos equipos del partido.
+  Future<void> _cambiarEquipos(BuildContext context) async {
+    final liga = datos.liga(p.ligaId);
+    // Equipos de la categoría y nivel (de todos sus grupos)
+    final ids = <String>{
+      for (final l in liga == null ? const <Liga>[] : datos.gruposDe(liga)) ...?datos.equiposDeLiga[l.id],
+      if (p.localId != null) p.localId!,
+      if (p.visitanteId != null) p.visitanteId!,
+    }.toList()
+      ..sort((a, b) => datos.nombreEquipo(a).compareTo(datos.nombreEquipo(b)));
+    String local = p.localId ?? '';
+    String visitante = p.visitanteId ?? '';
+    final opciones = [('', 'Por decidir'), for (final id in ids) (id, datos.nombreEquipo(id))];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          backgroundColor: MarbelColors.tarjeta,
+          title: Text(switch (p.fase) {
+            Fase.semifinal => 'Semifinal ${p.jornada ?? ''}',
+            Fase.tercerPuesto => '3er y 4º puesto',
+            Fase.final_ => 'Final',
+            Fase.liga => 'Partido',
+          }),
+          content: SizedBox(
+            width: 380,
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Desplegable<String>(etiqueta: 'Local', valor: local, opciones: opciones, onCambio: (v) => set(() => local = v ?? '')),
+              const SizedBox(height: 12),
+              Desplegable<String>(etiqueta: 'Visitante', valor: visitante, opciones: opciones, onCambio: (v) => set(() => visitante = v ?? '')),
+              const SizedBox(height: 10),
+              if (local.isNotEmpty && local == visitante)
+                const Text('Elige dos equipos distintos.', style: TextStyle(color: Color(0xFFFF7A85), fontSize: 13)),
+              if (p.tieneMarcador)
+                const Text('Este partido ya tiene marcador: se mantiene. Corrígelo si hace falta.',
+                    style: TextStyle(color: MarbelColors.medio, fontSize: 12.5)),
+              if (p.fase == Fase.semifinal)
+                const Text('El ganador pasa solo a la final y el perdedor al 3er puesto cuando la semifinal acabe.',
+                    style: TextStyle(color: MarbelColors.apagado, fontSize: 12.5)),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: local.isNotEmpty && local == visitante ? null : () => Navigator.pop(c, true),
+              child: const Text('GUARDAR'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok == true && context.mounted) {
+      await _cambiar(context, {
+        'local_id': local.isEmpty ? null : local,
+        'visitante_id': visitante.isEmpty ? null : visitante,
+      });
+    }
   }
 
   Future<void> _editarHora(BuildContext context) async {

@@ -23,6 +23,9 @@ Tu `env.json` y la carpeta oculta `.git` no se tocan, porque no van en el zip. P
 5. Y con `supabase/07_calendario_varias_sedes.sql` (permite que una liga juegue en varias sedes a la vez y en varios días). El `06` es el de las notificaciones: va en `NOTIFICACIONES.md`.
 6. Y con `supabase/08_comentarios.sql` (alias públicos, y comentarios con respuestas y reacciones en la página del torneo y en cada partido, con moderación).
 7. Y con `supabase/09_avisos_imagenes.sql` (permite poner hasta 4 imágenes en cada aviso).
+8. Y con `supabase/10_opiniones_y_grupos.sql` («Déjanos tu opinión» privado y grupos A, B… dentro de una categoría y nivel).
+9. Y con `supabase/11_fase_final_conjunta.sql` (botón para hacer una sola fase final entre los grupos de una categoría, si se decide a última hora).
+10. Y con `supabase/12_fase_final_a_mano.sql` (fase final con los equipos elegidos a mano).
 
 Esto añade:
 
@@ -138,10 +141,12 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 - **Antes de cada torneo:** Supabase pausa los proyectos gratuitos tras una semana sin uso. Entra en supabase.com un par de días antes y la misma mañana, y comprueba que el proyecto está activo (si pone *Paused*, pulsa *Restore*).
 - **Plan B:** acta en papel en cada mesa y al menos dos personas con acceso por sede.
 
-## Alias y comentarios
+## Alias, opiniones y grupos
 
-- **En público solo se ve el alias** (ranking de La Porra y comentarios). Nombre, apellidos, email y equipo solo los ve el personal.
-- **Al crear la cuenta** se elige el alias: de 3 a 20 letras o números, único y sin palabras del filtro. Se puede cambiar en **Más → Alias**.
-- **Las cuentas que ya existían** no tienen alias: la app les pide uno antes de comentar o guardar la porra.
-- **Vetar un alias:** Panel → **Comentarios → Alias** (o el menú ⋮ de un comentario). En público sale «Alias en revisión» y la persona tiene **24 horas** para cambiarlo. Si no lo cambia, no puede jugar a La Porra ni comentar hasta que elija otro. Avísale con **Enviar email** o **Copiar mensaje** (para WhatsApp). Al cambiarlo, el veto se quita solo.
-- **Comentarios:** con palabras del filtro, o con 3 denuncias, quedan pendientes hasta revisarlos. Nada se borra de verdad: queda como prueba con su autor real.
+- **En público solo se ve el alias**, en el ranking de La Porra. Nombre, apellidos, email y equipo solo los ve el personal.
+- **Alias:** se elige al crear la cuenta (3 a 20 letras o números, único, sin palabras del filtro) y se cambia en **Más → Alias**. Las cuentas antiguas sin alias lo eligen antes de guardar la porra.
+- **Vetar un alias:** Panel → **Alias de La Porra**. En público sale «Alias en revisión» y la persona tiene **24 horas** para cambiarlo; si no, no puede jugar a La Porra hasta que elija otro. Avísale con **Enviar email** o **Copiar mensaje**.
+- **Déjanos tu opinión** (al final de la página del torneo): hace falta cuenta y **solo lo lee administración** en Panel → **Opiniones** (Nuevas / Archivadas / Bloqueados). No se publica nada.
+- **Grupos:** si una categoría y nivel tiene demasiados equipos, en **Calendario y sedes → ⋮ → Dividir en grupos** la liga pasa a ser el grupo A y se crea el B. Después, en **Equipos e inscripciones**, quita de la liga los equipos que van al B y vuelve a inscribirlos eligiendo «Grupo B» (o inscríbelos directamente eligiendo el grupo). Cada grupo tiene su calendario, clasificación, fase final y porra. Un grupo vacío se quita desde el mismo menú ⋮.
+- **Fase final conjunta (opcional):** por defecto cada grupo tiene su fase final. Si se decide hacer una sola entre grupos, en **Calendario y sedes** el primer grupo de esa categoría y nivel tiene el botón **Fase final conjunta** (solo aparece si hay más de un grupo, todos tienen liguilla y ninguno tiene aún fase final). 2 grupos: 1º A – 2º B y 1º B – 2º A; 3 grupos: los primeros + el mejor segundo; 4 grupos: los primeros. Se deshace con «Borrar fase final conjunta». La Porra cuenta finalistas, campeón y 3er puesto de esa fase conjunta.
+- **Fase final a mano:** en cualquier partido de semifinal, 3er puesto o final, administración tiene **Cambiar equipos** en **Partidos y resultados** (por si un equipo abandona o hay cualquier cambio). Y en **Calendario y sedes** está **Fase final a mano**, que crea los cuatro partidos sin equipos para elegirlos uno a uno. La final y el 3er puesto se siguen rellenando solos al acabar las semifinales, y también se pueden cambiar a mano después.

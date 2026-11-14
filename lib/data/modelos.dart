@@ -137,12 +137,21 @@ class Liga {
       : id = m['id'] as String,
         torneoId = m['torneo_id'] as String,
         categoriaId = m['categoria_id'] as String,
-        nivelId = m['nivel_id'] as String;
+        nivelId = m['nivel_id'] as String,
+        grupo = _s(m['grupo']),
+        finalEn = _s(m['final_en']);
 
   final String id;
   final String torneoId;
   final String categoriaId;
   final String nivelId;
+
+  /// "A", "B"... cuando una categoría y nivel se reparte en varios grupos.
+  /// null si solo hay una liga.
+  final String? grupo;
+
+  /// Si su fase final es conjunta con otros grupos: la liga (grupo) donde se juega.
+  final String? finalEn;
 }
 
 enum Fase { liga, semifinal, tercerPuesto, final_ }
@@ -347,7 +356,7 @@ class Perfil {
 
   final String id;
 
-  /// Lo único que se ve en público (ranking de La Porra y comentarios).
+  /// Lo único que se ve en público (ranking de La Porra).
   final String? alias;
 
   /// Si el personal ha vetado el alias: cuándo. Hay 24 h para cambiarlo.
@@ -363,7 +372,7 @@ class Perfil {
   /// Como lo ven los demás.
   String get aliasVisible => aliasVetado ? 'Alias en revisión' : (alias ?? 'Sin alias');
 
-  /// No puede escribir comentarios (lo decide el personal).
+  /// No puede enviar opiniones (lo decide administración).
   final bool comentariosBloqueado;
   final String nombre;
   final String apellidos;
@@ -445,7 +454,7 @@ String cuando(DateTime d) {
   return diaCorto(d);
 }
 
-/// Comentario de la página del torneo o de un partido.
+/// Opinión enviada desde «Déjanos tu opinión» (solo la lee administración).
 class Comentario {
   Comentario.fromMap(Map<String, dynamic> m)
       : id = m['id'] as String,
