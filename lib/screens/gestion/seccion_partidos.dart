@@ -41,7 +41,15 @@ class _SeccionPartidosState extends State<SeccionPartidos> {
     final retrasados = lista.where((p) => p.retrasado).toList();
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Text('Cada cambio se publica al momento en la web y en la app.', style: TextStyle(color: MarbelColors.apagado)),
+      Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        const Text('Cada cambio se publica al momento en la web y en la app.', style: TextStyle(color: MarbelColors.apagado)),
+        if (!mesa)
+          OutlinedButton.icon(
+            onPressed: () => nuevoPartido(context, dia: dia, sedeId: sedeId),
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Nuevo partido'),
+          ),
+      ]),
       const SizedBox(height: 12),
       if (!mesa)
         FilaChips(children: [
@@ -227,11 +235,17 @@ class _EditorPartido extends StatelessWidget {
               icon: const Icon(Icons.edit_calendar_rounded, size: 18),
               label: const Text('Hora y sede'),
             ),
-          if (admin && p.fase != Fase.liga)
+          if (admin)
             TextButton.icon(
               onPressed: () => _cambiarEquipos(context),
               icon: const Icon(Icons.swap_horiz_rounded, size: 18),
               label: const Text('Cambiar equipos'),
+            ),
+          if (admin)
+            TextButton.icon(
+              onPressed: () => _borrar(context),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFFF7A85)),
+              label: const Text('Borrar partido', style: TextStyle(color: Color(0xFFFF7A85))),
             ),
         ]),
         const SizedBox(height: 14),
@@ -323,16 +337,26 @@ class _EditorPartido extends StatelessWidget {
     return ini.isEmpty ? nombre : '$nombre ${ini[0].toUpperCase()}.';
   }
 
-  /// Fase final a mano: elegir (o cambiar) los dos equipos del partido.
+  Future<void> _borrar(BuildContext context) async {
+    final texto = '${datos.nombreEquipo(p.localId)} – ${datos.nombreEquipo(p.visitanteId)} · ${diaCorto(p.hora)} ${hhmm(p.hora)}';
+    if (!await confirmar(context, '¿Borrar este partido?', '$texto\n\nSe borran también sus goles. No se puede deshacer.',
+        boton: 'Borrar')) {
+      return;
+    }
+    if (!context.mounted) return;
+    await ejecutar(context, () async {
+      await db.from('partidos').delete().eq('id', p.id);
+      await datos.recargar();
+    }, ok: 'Partido borrado');
+  }
+
+  /// Elegir (o cambiar) a mano los dos equipos del partido.
   Future<void> _cambiarEquipos(BuildContext context) async {
-    final liga = datos.liga(p.ligaId);
-    // Equipos de la categoría y nivel (de todos sus grupos)
     final ids = <String>{
-      for (final l in liga == null ? const <Liga>[] : datos.gruposDe(liga)) ...?datos.equiposDeLiga[l.id],
+      ...equiposPara(p.ligaId, p.fase),
       if (p.localId != null) p.localId!,
       if (p.visitanteId != null) p.visitanteId!,
-    }.toList()
-      ..sort((a, b) => datos.nombreEquipo(a).compareTo(datos.nombreEquipo(b)));
+    }.toList();
     String local = p.localId ?? '';
     String visitante = p.visitanteId ?? '';
     final opciones = [('', 'Por decidir'), for (final id in ids) (id, datos.nombreEquipo(id))];
@@ -345,7 +369,7 @@ class _EditorPartido extends StatelessWidget {
             Fase.semifinal => 'Semifinal ${p.jornada ?? ''}',
             Fase.tercerPuesto => '3er y 4º puesto',
             Fase.final_ => 'Final',
-            Fase.liga => 'Partido',
+            Fase.liga => 'Liguilla · Jornada ${p.jornada ?? ''}',
           }),
           content: SizedBox(
             width: 380,
@@ -448,4 +472,188 @@ class _Penaltis extends StatelessWidget {
       IconButton(onPressed: () => onCambio((valor ?? 0) + 1), icon: const Icon(Icons.add_rounded)),
     ]);
   }
+}
+
+
+/// Equipos que pueden jugar un partido de esa liga: los de la liga (en la
+/// liguilla) o los de todos sus grupos (en la fase final).
+List<String> equiposPara(String ligaId, Fase fase) {
+  final l = datos.liga(ligaId);
+  if (l == null) return const [];
+  final ligas = fase == Fase.liga ? [l] : datos.gruposDe(l);
+  final ids = <String>{for (final x in ligas) ...?datos.equiposDeLiga[x.id]}.toList()
+    ..sort((a, b) => datos.nombreEquipo(a).compareTo(datos.nombreEquipo(b)));
+  return ids;
+}
+
+/// Crear un partido a mano (liguilla o fase final). Solo administración.
+Future<void> nuevoPartido(BuildContext context, {DateTime? dia, String? sedeId}) async {
+  final ligas = datos.ligasActuales;
+  if (ligas.isEmpty) {
+    avisar(context, 'Primero inscribe equipos en una liga («Equipos e inscripciones»).', error: true);
+    return;
+  }
+  String? liga = ligas.first.id;
+  var fase = Fase.liga;
+  final jornada = TextEditingController(text: '1');
+  String local = '';
+  String visitante = '';
+  final base = dia ?? soloDia(DateTime.now());
+  DateTime? hora = DateTime(base.year, base.month, base.day, 10);
+  String? sede = sedeId ?? (datos.sedes.isEmpty ? null : datos.sedes.first.id);
+  String? campo = 'Campo 1';
+  String? error;
+
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => StatefulBuilder(
+      builder: (c, set) {
+        final equipos = liga == null ? const <String>[] : equiposPara(liga!, fase);
+        final opciones = [('', 'Por decidir'), for (final id in equipos) (id, datos.nombreEquipo(id))];
+        if (local.isNotEmpty && !equipos.contains(local)) local = '';
+        if (visitante.isNotEmpty && !equipos.contains(visitante)) visitante = '';
+        return AlertDialog(
+          backgroundColor: MarbelColors.tarjeta,
+          title: const Text('Nuevo partido'),
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Desplegable<String>(
+                  etiqueta: 'Liga',
+                  valor: liga,
+                  opciones: [for (final l in ligas) (l.id, datos.nombreLiga(l.id))],
+                  onCambio: (v) => set(() => liga = v),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: Desplegable<Fase>(
+                      etiqueta: 'Fase',
+                      valor: fase,
+                      opciones: const [
+                        (Fase.liga, 'Liguilla'),
+                        (Fase.semifinal, 'Semifinal'),
+                        (Fase.tercerPuesto, '3er y 4º puesto'),
+                        (Fase.final_, 'Final'),
+                      ],
+                      onCambio: (v) => set(() {
+                        fase = v ?? Fase.liga;
+                        jornada.text = '1';
+                      }),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  if (fase == Fase.liga || fase == Fase.semifinal)
+                    SizedBox(
+                      width: 120,
+                      child: fase == Fase.semifinal
+                          ? Desplegable<String>(
+                              etiqueta: 'Semifinal',
+                              valor: jornada.text,
+                              opciones: const [('1', 'Semi 1'), ('2', 'Semi 2')],
+                              onCambio: (v) => set(() => jornada.text = v ?? '1'),
+                            )
+                          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              const Text('Jornada', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFFC8D0F5))),
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: jornada,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                              ),
+                            ]),
+                    ),
+                ]),
+                const SizedBox(height: 12),
+                Desplegable<String>(etiqueta: 'Local', valor: local, opciones: opciones, onCambio: (v) => set(() => local = v ?? '')),
+                const SizedBox(height: 12),
+                Desplegable<String>(
+                    etiqueta: 'Visitante', valor: visitante, opciones: opciones, onCambio: (v) => set(() => visitante = v ?? '')),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final h = await elegirFechaHora(c, hora ?? DateTime.now());
+                    if (h != null) set(() => hora = h);
+                  },
+                  icon: const Icon(Icons.event_rounded, size: 18),
+                  label: Text(hora == null ? 'Elegir día y hora' : '${diaCorto(hora!)} · ${hhmm(hora!)}'),
+                ),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(
+                    child: Desplegable<String>(
+                      etiqueta: 'Sede',
+                      valor: sede,
+                      opciones: [for (final s in datos.sedes) (s.id, s.nombre)],
+                      onCambio: (v) => set(() => sede = v),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 140,
+                    child: Desplegable<String>(
+                      etiqueta: 'Campo',
+                      valor: campo,
+                      opciones: const [('Campo 1', 'Campo 1'), ('Campo 2', 'Campo 2'), ('Campo 3', 'Campo 3')],
+                      onCambio: (v) => set(() => campo = v),
+                    ),
+                  ),
+                ]),
+                if (fase != Fase.liga && liga != null && datos.liga(liga!)?.finalEn != null) ...[
+                  const SizedBox(height: 10),
+                  const Text('Esta categoría tiene fase final conjunta: el partido se añade a ella.',
+                      style: TextStyle(color: MarbelColors.cian, fontSize: 12.5)),
+                ],
+                if (error != null) ...[
+                  const SizedBox(height: 10),
+                  Text(error!, style: const TextStyle(color: Color(0xFFFF7A85), fontWeight: FontWeight.w600)),
+                ],
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () {
+                final j = int.tryParse(jornada.text.trim());
+                final String? problema = switch (true) {
+                  _ when liga == null => 'Elige la liga',
+                  _ when hora == null => 'Elige el día y la hora',
+                  _ when sede == null => 'Elige la sede',
+                  _ when fase == Fase.liga && (local.isEmpty || visitante.isEmpty) => 'En la liguilla hay que elegir los dos equipos',
+                  _ when local.isNotEmpty && local == visitante => 'Elige dos equipos distintos',
+                  _ when fase == Fase.liga && (j == null || j < 1) => 'La jornada tiene que ser un número (1, 2, 3...)',
+                  _ => null,
+                };
+                if (problema != null) {
+                  set(() => error = problema);
+                  return;
+                }
+                Navigator.pop(c, true);
+              },
+              child: const Text('CREAR'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  final j = int.tryParse(jornada.text.trim()) ?? 1;
+  jornada.dispose();
+  if (ok != true || !context.mounted) return;
+  final destino = fase == Fase.liga ? liga! : datos.ligaFaseFinal(liga!);
+  await ejecutar(context, () async {
+    await db.from('partidos').insert({
+      'liga_id': destino,
+      'fase': faseSql(fase),
+      'jornada': fase == Fase.tercerPuesto || fase == Fase.final_ ? 1 : j,
+      'local_id': local.isEmpty ? null : local,
+      'visitante_id': visitante.isEmpty ? null : visitante,
+      'hora': hora!.toUtc().toIso8601String(),
+      'sede_id': sede,
+      'campo': campo,
+    });
+    await datos.recargar();
+  }, ok: 'Partido creado');
 }
