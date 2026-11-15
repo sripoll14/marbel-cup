@@ -168,6 +168,16 @@ class TablaClasificacion extends StatelessWidget {
     }
     const cab = TextStyle(
         color: MarbelColors.apagado, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: .8);
+    final ancho = esAncho(context);
+    final cols = <(String, Object Function(FilaClasificacion))>[
+      ('PJ', (f) => f.pj),
+      if (completa) ...[('G', (f) => f.g), ('E', (f) => f.e), ('P', (f) => f.p)],
+      ('GF', (f) => f.gf),
+      ('GC', (f) => f.gc),
+      ('DG', (f) => f.dgTexto),
+    ];
+    final anchoCol = ancho ? 38.0 : 34.0;
+    final hayEmpate = filas.any((f) => f.empatePendiente);
     TableRow fila(FilaClasificacion f) {
       final e = datos.equipo(f.equipoId);
       final clasifica = f.pos <= 4;
@@ -211,7 +221,7 @@ class TablaClasificacion extends StatelessWidget {
                   Escudo(e, tamano: 24),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text('${e?.nombre ?? '?'}${fav ? ' ★' : ''}',
+                    child: Text('${e?.nombre ?? '?'}${fav ? ' ★' : ''}${f.empatePendiente ? ' *' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -220,35 +230,49 @@ class TablaClasificacion extends StatelessWidget {
               ),
             ),
           ),
-          n(f.pj),
-          if (completa) ...[n(f.g), n(f.e), n(f.p)],
-          n(f.dgTexto),
+          for (final c in cols) n(c.$2(f)),
           n(f.pts, fuerte: true),
         ],
       );
     }
 
-    return Table(
+    // Si no cabe (móvil), la tabla se desliza de lado; el resto de la página no se mueve.
+    const anchoEquipo = 170.0;
+    Table tabla0(bool cabe) => Table(
       columnWidths: {
-        0: const FlexColumnWidth(),
-        for (var i = 1; i <= (completa ? 6 : 3); i++) i: const FixedColumnWidth(38),
+        0: cabe ? const FlexColumnWidth() : const FixedColumnWidth(anchoEquipo),
+        for (var i = 1; i <= cols.length + 1; i++) i: FixedColumnWidth(anchoCol),
       },
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       children: [
         TableRow(children: [
           const Padding(padding: EdgeInsets.only(bottom: 6), child: Text('EQUIPO', style: cab)),
-          const Text('PJ', textAlign: TextAlign.center, style: cab),
-          if (completa) ...const [
-            Text('G', textAlign: TextAlign.center, style: cab),
-            Text('E', textAlign: TextAlign.center, style: cab),
-            Text('P', textAlign: TextAlign.center, style: cab),
-          ],
-          const Text('DG', textAlign: TextAlign.center, style: cab),
+          for (final c in cols) Text(c.$1, textAlign: TextAlign.center, style: cab),
           const Text('PTS', textAlign: TextAlign.center, style: cab),
         ]),
         for (final f in filas) fila(f),
       ],
     );
+    final tabla = LayoutBuilder(builder: (context, c) {
+      final cabe = c.maxWidth >= anchoEquipo + anchoCol * (cols.length + 1);
+      if (cabe) return tabla0(true);
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(width: anchoEquipo + anchoCol * (cols.length + 1), child: tabla0(false)),
+        ),
+        const SizedBox(height: 4),
+        const Text('Desliza la tabla hacia el lado para ver todas las columnas →',
+            style: TextStyle(color: MarbelColors.apagado, fontSize: 11.5)),
+      ]);
+    });
+    if (!hayEmpate) return tabla;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      tabla,
+      const SizedBox(height: 6),
+      const Text('* Empate a puntos: el orden lo decide la organización según el reglamento.',
+          style: TextStyle(color: MarbelColors.medio, fontSize: 12, fontWeight: FontWeight.w600)),
+    ]);
   }
 }
 
@@ -337,7 +361,7 @@ class CuadroFinal extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const EstadoVacio(
-              'La fase final se publica al terminar la liga. Si acabara ahora, las semifinales serían:',
+              'La fase final la publica la organización al terminar la liga. Con la clasificación de ahora, las semifinales serían:',
               icono: Icons.account_tree_rounded),
           const SizedBox(height: 12),
           Text('Semi 1 · 1º ${n(0)} vs 4º ${n(3)}',

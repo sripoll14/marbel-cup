@@ -256,6 +256,12 @@ class FilaClasificacion {
   final String equipoId;
   int pj = 0, g = 0, e = 0, p = 0, gf = 0, gc = 0;
   int pos = 0;
+
+  /// Orden puesto a mano por la organización para resolver empates a puntos.
+  int? ordenManual;
+
+  /// Empatado a puntos con otro equipo y sin resolver aún a mano.
+  bool empatePendiente = false;
   int get dg => gf - gc;
   int get pts => g * 3 + e;
   String get dgTexto => dg > 0 ? '+$dg' : '$dg';

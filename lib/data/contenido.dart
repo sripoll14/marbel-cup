@@ -138,8 +138,17 @@ class Contenido {
   static const faqs = [
     ('¿Puedo elegir el nivel de mi equipo?',
         'Sí. Al inscribiros elegís categoría y nivel (iniciación, medio o élite). La organización puede reubicar a un equipo si el nivel no encaja.'),
-    ('¿Qué pasa si dos equipos empatan a puntos en la liga?',
-        'Como en la liga profesional: desempata la diferencia de goles (goles a favor menos goles en contra). Si sigue el empate, el que haya marcado más goles.'),
+    ('¿Qué pasa si hay empate a puntos en la liguilla?',
+        'Si empatan DOS equipos:\n'
+        '1. El enfrentamiento directo entre ambos.\n'
+        '2. El equipo con más goles a favor.\n'
+        '3. El equipo con menos goles en contra.\n'
+        '4. Una tanda de 3 penaltis por equipo.\n\n'
+        'Si empatan TRES equipos:\n'
+        '1. Pasa el equipo (o los equipos) con más goles a favor.\n'
+        '2. El enfrentamiento directo.\n'
+        '3. Si siguen empatados dos equipos, pasa el que haya recibido menos goles.\n'
+        '4. Si sigue el empate, por sorteo.'),
     ('¿Cuántos partidos jugamos como mínimo?',
         'Cada equipo juega 4 partidos en su liga. Los 4 primeros pasan a semifinales (1º vs 4º y 2º vs 3º). Los ganadores juegan la final y los perdedores, el partido por el 3er y 4º puesto.'),
     ('¿Cómo me entero de horarios y cambios de campo?',

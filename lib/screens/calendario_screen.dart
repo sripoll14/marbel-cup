@@ -318,7 +318,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
           tabla(datos.liga(_ligaMovil ?? '') == null ? datos.ligasActuales.first.id : _ligaMovil!),
         ],
         const Text(
-          'Liga de 5: cada equipo juega 4 partidos · los 4 primeros pasan a semifinales (1º vs 4º · 2º vs 3º) · empate a puntos: diferencia de goles',
+          'Liga de 5: cada equipo juega 4 partidos · los 4 primeros pasan a semifinales (1º vs 4º · 2º vs 3º) · empate a puntos: lo resuelve la organización según el reglamento',
           style: TextStyle(color: MarbelColors.apagado, fontSize: 12),
         ),
       ],

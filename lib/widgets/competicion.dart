@@ -177,7 +177,7 @@ class _CompeticionState extends State<Competicion> {
                 children: [
                   _Leyenda(),
                   Text('1º vs 4º · 2º vs 3º', style: TextStyle(color: MarbelColors.apagado, fontSize: 13)),
-                  Text('Empate a puntos: diferencia de goles, luego goles a favor',
+                  Text('Empate a puntos: lo resuelve la organización según el reglamento',
                       style: TextStyle(color: MarbelColors.apagado, fontSize: 13)),
                 ],
               ),

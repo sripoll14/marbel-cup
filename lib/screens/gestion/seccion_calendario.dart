@@ -90,7 +90,8 @@ class SeccionCalendario extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       const Text(
         'Cada liga juega una liguilla todos contra todos y después semifinales (1º–4º y 2º–3º), '
-        'partido por el 3er y 4º puesto y final. Desempate: diferencia de goles y, después, goles a favor.',
+        'partido por el 3er y 4º puesto y final. La tabla se calcula sola y se ordena por puntos; los empates a puntos '
+        'se resuelven a mano según el reglamento («Ordenar empates»), y los equipos de la fase final también se eligen a mano.',
         style: TextStyle(color: MarbelColors.apagado),
       ),
       const SizedBox(height: 16),
@@ -135,17 +136,14 @@ class _FilaLiga extends StatelessWidget {
     final partidos = datos.partidosDeLiga(liga.id);
     final deLiga = partidos.where((p) => p.fase == Fase.liga).toList();
     final finales = partidos.where((p) => p.fase != Fase.liga).toList();
-    final ligaTerminada = deLiga.isNotEmpty && deLiga.every((p) => p.estado == Estado.finalizado);
+    final hayEmpate = datos.clasificacion(liga.id).any((f) => f.empatePendiente);
     final grupos = datos.gruposDe(liga);
     final ligaBase = liga.finalEn == null ? null : datos.liga(liga.finalEn!);
-    // Botón de fase final conjunta: solo en el primer grupo, si hay varios grupos,
-    // todos tienen liguilla y ninguno tiene aún fase final.
+    // Fase final conjunta: solo en el primer grupo, si hay varios grupos
+    // y ninguno tiene aún fase final.
     final puedeConjunta = grupos.length > 1 &&
         grupos.first.id == liga.id &&
-        grupos.every((g) =>
-            g.finalEn == null &&
-            datos.partidosDeLiga(g.id).any((p) => p.fase == Fase.liga) &&
-            !datos.partidosDeLiga(g.id).any((p) => p.fase != Fase.liga));
+        grupos.every((g) => g.finalEn == null && !datos.partidosDeLiga(g.id).any((p) => p.fase != Fase.liga));
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -201,31 +199,6 @@ class _FilaLiga extends StatelessWidget {
           if (ligaBase != null)
             Text('Fase final conjunta: se juega en el grupo ${ligaBase.grupo ?? ''}',
                 style: const TextStyle(color: MarbelColors.cian, fontWeight: FontWeight.w700, fontSize: 13)),
-          if (deLiga.isNotEmpty && finales.isEmpty && liga.finalEn == null)
-            OutlinedButton.icon(
-              onPressed: () async {
-                if (!ligaTerminada &&
-                    !await confirmar(context, 'La liguilla no ha terminado',
-                        'Los cruces se harán con la clasificación de ahora mismo. ¿Seguir?', boton: 'Seguir')) {
-                  return;
-                }
-                if (!context.mounted) return;
-                final d = await pedirDatos(context, 'Fase final · ${datos.nombreLiga(liga.id)}');
-                if (d == null || !context.mounted) return;
-                await ejecutar(context, () async {
-                  await db.rpc('generar_fase_final', params: {
-                    'p_liga': liga.id,
-                    'p_inicio': d.inicio.toUtc().toIso8601String(),
-                    'p_sede': d.sede,
-                    'p_minutos': d.minutos,
-                    'p_campos': d.campos,
-                  });
-                  await datos.recargar();
-                }, ok: 'Semifinales, 3er puesto y final creados');
-              },
-              icon: const Icon(Icons.emoji_events_rounded, size: 18),
-              label: const Text('Generar fase final'),
-            ),
           if (finales.isEmpty && liga.finalEn == null && equipos.length >= 2)
             TextButton.icon(
               onPressed: () async {
@@ -256,22 +229,14 @@ class _FilaLiga extends StatelessWidget {
               label: const Text('Fase final a mano'),
             ),
           if (puedeConjunta)
-            OutlinedButton.icon(
+            TextButton.icon(
               onPressed: () async {
                 final letras = grupos.map((g) => g.grupo ?? '').join(', ');
-                final cruces = switch (grupos.length) {
-                  2 => 'Semifinales: 1º A – 2º B y 1º B – 2º A.',
-                  3 => 'Se clasifican los tres primeros y el mejor segundo (sin repetir grupo en semifinales).',
-                  4 => 'Semifinales: 1º A – 1º D y 1º B – 1º C.',
-                  _ => 'Admite como mucho 4 grupos.',
-                };
-                final sinAcabar = grupos.any((g) => datos.partidosDeLiga(g.id).any((p) => p.fase == Fase.liga && p.estado != Estado.finalizado));
                 if (!await confirmar(
                     context,
                     'Fase final conjunta (grupos $letras)',
-                    'En vez de una fase final por grupo, se juega una sola entre todos los grupos. $cruces '
-                        'Después, 3er puesto y final como siempre.'
-                        '${sinAcabar ? '\n\nOjo: algún grupo no ha terminado; los cruces se harán con la clasificación de ahora.' : ''}',
+                    'En vez de una fase final por grupo, se juega una sola entre todos los grupos. Se crean las semifinales, '
+                        'el 3er puesto y la final sin equipos, y los eliges a mano en «Partidos y resultados» → «Cambiar equipos».',
                     boton: 'Seguir')) {
                   return;
                 }
@@ -279,7 +244,7 @@ class _FilaLiga extends StatelessWidget {
                 final d = await pedirDatos(context, 'Fase final conjunta · ${datos.nombreLiga(liga.id, sinGrupo: true)}');
                 if (d == null || !context.mounted) return;
                 await ejecutar(context, () async {
-                  await db.rpc('generar_fase_conjunta', params: {
+                  await db.rpc('crear_fase_conjunta_vacia', params: {
                     'p_liga': liga.id,
                     'p_inicio': d.inicio.toUtc().toIso8601String(),
                     'p_sede': d.sede,
@@ -287,10 +252,17 @@ class _FilaLiga extends StatelessWidget {
                     'p_campos': d.campos,
                   });
                   await datos.recargar();
-                }, ok: 'Fase final conjunta creada');
+                }, ok: 'Creada. Elige los equipos en «Partidos y resultados».');
               },
               icon: const Icon(Icons.merge_type_rounded, size: 18),
-              label: const Text('Fase final conjunta'),
+              label: const Text('Fase final conjunta a mano'),
+            ),
+          if (deLiga.any((p) => p.estado == Estado.finalizado))
+            TextButton.icon(
+              onPressed: () => _ordenarEmpates(context),
+              icon: Icon(Icons.low_priority_rounded, size: 18, color: hayEmpate ? MarbelColors.medio : null),
+              label: Text(hayEmpate ? 'Ordenar empates (pendiente)' : 'Ordenar empates',
+                  style: TextStyle(color: hayEmpate ? MarbelColors.medio : null)),
             ),
           if (finales.isNotEmpty)
             TextButton(
@@ -357,5 +329,94 @@ class _FilaLiga extends StatelessWidget {
         ]),
       ),
     );
+  }
+
+  /// Orden de la clasificación cuando hay empate a puntos (reglamento: lo decide la organización).
+  Future<void> _ordenarEmpates(BuildContext context) async {
+    final orden = [for (final f in datos.clasificacion(liga.id)) f];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) {
+          void mover(int i, int d) {
+            final j = i + d;
+            if (j < 0 || j >= orden.length || orden[j].pts != orden[i].pts) return;
+            set(() {
+              final x = orden[i];
+              orden[i] = orden[j];
+              orden[j] = x;
+            });
+          }
+
+          return AlertDialog(
+            backgroundColor: MarbelColors.tarjeta,
+            title: Text('Clasificación · ${datos.nombreLiga(liga.id)}'),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  const Text(
+                    'Solo se pueden mover los equipos empatados a puntos. Ordénalos según el reglamento '
+                    '(enfrentamiento directo, goles a favor, goles en contra, penaltis o sorteo).',
+                    style: TextStyle(color: MarbelColors.apagado, fontSize: 13),
+                  ),
+                  const SizedBox(height: 10),
+                  for (var i = 0; i < orden.length; i++)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: MarbelColors.fondoAlto,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: orden.where((x) => x.pts == orden[i].pts).length > 1 ? MarbelColors.medio : MarbelColors.borde),
+                      ),
+                      child: Row(children: [
+                        SizedBox(width: 26, child: Text('${i + 1}º', style: const TextStyle(fontWeight: FontWeight.w800))),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(datos.nombreEquipo(orden[i].equipoId), style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Text('${orden[i].pts} pts · GF ${orden[i].gf} · GC ${orden[i].gc}',
+                                style: const TextStyle(color: MarbelColors.apagado, fontSize: 12)),
+                          ]),
+                        ),
+                        IconButton(
+                          tooltip: 'Subir',
+                          onPressed: i > 0 && orden[i - 1].pts == orden[i].pts ? () => mover(i, -1) : null,
+                          icon: const Icon(Icons.arrow_upward_rounded),
+                        ),
+                        IconButton(
+                          tooltip: 'Bajar',
+                          onPressed: i < orden.length - 1 && orden[i + 1].pts == orden[i].pts ? () => mover(i, 1) : null,
+                          icon: const Icon(Icons.arrow_downward_rounded),
+                        ),
+                      ]),
+                    ),
+                ]),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(c, false);
+                  await ejecutar(context, () async {
+                    await db.rpc('ordenar_empates', params: {'p_liga': liga.id, 'p_equipos': <String>[]});
+                    await datos.recargar();
+                  }, ok: 'Orden a mano quitado');
+                },
+                child: const Text('Quitar orden a mano'),
+              ),
+              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar')),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('GUARDAR')),
+            ],
+          );
+        },
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    await ejecutar(context, () async {
+      await db.rpc('ordenar_empates', params: {'p_liga': liga.id, 'p_equipos': [for (final f in orden) f.equipoId]});
+      await datos.recargar();
+    }, ok: 'Clasificación ordenada');
   }
 }

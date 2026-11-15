@@ -35,6 +35,9 @@ class Datos extends ChangeNotifier {
   List<Equipo> equipos = [];
   List<Liga> ligas = [];
   Map<String, List<String>> equiposDeLiga = {}; // liga -> equipos
+
+  /// Orden a mano de la clasificación ("liga|equipo" -> posición), para empates.
+  Map<String, int> ordenManual = {};
   List<Partido> partidos = [];
   List<Gol> goles = [];
   List<Aviso> avisos = [];
@@ -166,8 +169,11 @@ class Datos extends ChangeNotifier {
     equipos = _de('equipos').map(Equipo.fromMap).toList();
     ligas = _de('ligas').map(Liga.fromMap).toList();
     equiposDeLiga = {};
+    ordenManual = {};
     for (final m in _de('liga_equipos')) {
       equiposDeLiga.putIfAbsent(m['liga_id'] as String, () => []).add(m['equipo_id'] as String);
+      final o = m['orden_manual'];
+      if (o != null) ordenManual['${m['liga_id']}|${m['equipo_id']}'] = (o as num).toInt();
     }
     partidos = _de('partidos').map(Partido.fromMap).toList()..sort((a, b) => a.hora.compareTo(b.hora));
     goles = _de('goles').map(Gol.fromMap).toList();
@@ -372,15 +378,25 @@ class Datos extends ChangeNotifier {
       else if (gl < gv) { v.g++; l.p++; }
       else { l.e++; v.e++; }
     }
+    for (final f in filas.values) {
+      f.ordenManual = ordenManual['$ligaId|${f.equipoId}'];
+    }
+    // Puntos y, si empatan, el orden que ponga la organización a mano
+    // (reglamento: enfrentamiento directo, goles, penaltis, sorteo...).
+    // Mientras no lo ponga, los empatados salen por orden alfabético.
     final lista = filas.values.toList()
       ..sort((a, b) {
         if (a.pts != b.pts) return b.pts.compareTo(a.pts);
-        if (a.dg != b.dg) return b.dg.compareTo(a.dg);
-        if (a.gf != b.gf) return b.gf.compareTo(a.gf);
-        return a.equipoId.compareTo(b.equipoId);
+        final oa = a.ordenManual ?? 1 << 20, ob = b.ordenManual ?? 1 << 20;
+        if (oa != ob) return oa.compareTo(ob);
+        return nombreEquipo(a.equipoId).compareTo(nombreEquipo(b.equipoId));
       });
     for (var i = 0; i < lista.length; i++) {
       lista[i].pos = i + 1;
+    }
+    for (final f in lista) {
+      final iguales = lista.where((x) => x.pts == f.pts).toList();
+      f.empatePendiente = f.pj > 0 && iguales.length > 1 && iguales.any((x) => x.ordenManual == null);
     }
     return lista;
   }
