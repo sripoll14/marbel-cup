@@ -39,6 +39,10 @@
     html, body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; }
     /* Aquí dentro se dibuja la app: toda la pantalla, hasta abajo del todo */
     /* Arriba deja el hueco de la hora y la batería (iPhone); abajo llega hasta el final de la pantalla */
+    html.ios-instalada, html.ios-instalada body { background: #0C1250; }
+    #marbel-hora { display: none; }
+    html.ios-instalada #marbel-hora { display: block; position: fixed; top: 0; left: 0; right: 0;
+      height: env(safe-area-inset-top, 0px); background: #060A2B; }
     #marbel-app { position: fixed; top: env(safe-area-inset-top, 0px); right: 0; bottom: 0; left: 0; touch-action: manipulation; }
 
     /* Avisos de instalación (Android e iPhone) */
@@ -66,6 +70,20 @@
 </head>
 <body>
   <div id="marbel-app"></div>
+  <!-- iPhone con la app instalada: por un fallo de iOS (26 y 27), el iPhone deja una franja vacía
+       debajo de la app que la web no puede tocar, y la pinta con el color de fondo de la página.
+       Con el fondo del mismo azul que el menú, la franja parece parte del menú. Arriba, la zona
+       de la hora se queda oscura como la cabecera. -->
+  <div id="marbel-hora"></div>
+  <script>
+    (function () {
+      var ua = navigator.userAgent;
+      var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var instalada = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+      if (!ios || !instalada) return;
+      document.documentElement.classList.add('ios-instalada');
+    })();
+  </script>
   <!-- Android / Chrome: "Instala Marbel Cup" -->
   <div class="mc-inst" id="mc-android" role="dialog" aria-label="Instalar la app">
     <div class="mc-fila">

@@ -115,6 +115,16 @@ window.marbelDescargar = function (nombre, texto) {
 // Hueco de abajo del iPhone (la rayita de inicio), en píxeles. 0 si no hay.
 window.marbelHuecoAbajo = function () {
   try {
+    // iPhone con la app instalada y la franja de abajo del fallo de iOS: esa franja ya
+    // separa el menú de la rayita de inicio, así que no se deja más hueco.
+    var ua = navigator.userAgent;
+    var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var instalada = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    if (ios && instalada) {
+      var vertical = window.innerHeight >= window.innerWidth;
+      var pantalla = vertical ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+      if (pantalla - window.innerHeight > 30) return 0;
+    }
     var d = document.createElement('div');
     d.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:0;visibility:hidden;' +
       'padding-bottom:env(safe-area-inset-bottom)';
