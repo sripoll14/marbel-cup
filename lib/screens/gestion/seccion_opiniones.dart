@@ -56,16 +56,22 @@ class _SeccionOpinionesState extends State<SeccionOpiniones> {
 
   @override
   Widget build(BuildContext context) {
-    final todas = _filas ?? const <Map<String, dynamic>>[];
+    // Solo las del torneo elegido arriba (las antiguas sin torneo salen en todos)
+    final t = datos.torneo;
+    final todas = [
+      for (final f in _filas ?? const <Map<String, dynamic>>[])
+        if (f['torneo_id'] == null || f['torneo_id'] == t?.id) f,
+    ];
     final nuevas = todas.where((f) => f['estado'] == 'publicado' || f['estado'] == 'pendiente').toList();
     final archivadas = todas.where((f) => f['estado'] == 'oculto' || f['estado'] == 'borrado').toList();
     final lista = _vista == 0 ? nuevas : archivadas;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Text(
-        'Lo que la gente escribe en «Déjanos tu opinión» (página del torneo). No se publica: solo lo ve administración. '
+      Text(
+        'Lo que la gente escribe en «Déjanos tu opinión» de ${t?.nombre ?? 'este torneo'}. '
+        'Para ver las de otro torneo, elígelo arriba. No se publica: solo lo ve administración. '
         'Archiva las que ya hayas leído o atendido.',
-        style: TextStyle(color: MarbelColors.apagado),
+        style: const TextStyle(color: MarbelColors.apagado),
       ),
       const SizedBox(height: 12),
       FilaChips(children: [
@@ -105,9 +111,6 @@ class _SeccionOpinionesState extends State<SeccionOpiniones> {
         Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
           Text(nombre, style: const TextStyle(fontWeight: FontWeight.w800)),
           Text('· ${diaCorto(c.creado)} ${hhmm(c.creado)}', style: const TextStyle(color: MarbelColors.apagado, fontSize: 12)),
-          if (datos.torneos.length > 1 && f['torneo_id'] != null)
-            Pastilla(datos.torneos.where((t) => t.id == f['torneo_id']).firstOrNull?.nombre ?? 'Torneo',
-                fondo: const Color(0xFF1E2672), color: MarbelColors.cian, tamano: 11),
           if (c.estado == 'borrado')
             const Pastilla('Borrada por su autor', fondo: Color(0xFF2A2F55), color: MarbelColors.apagado, tamano: 11),
           if (c.partidoId != null || c.respuestaA != null)

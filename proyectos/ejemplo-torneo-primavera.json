@@ -1,0 +1,83 @@
+{
+  "formato": "marbel-cup-torneo",
+  "version": 1,
+  "nombre": "Torneo de Ejemplo Primavera 2027",
+  "fechas": "20-21 mar",
+  "inicio": "2027-03-20T09:00:00+01:00",
+  "inscripcion_hasta": "2027-03-10",
+  "jornadas": ["2027-03-20", "2027-03-21"],
+  "horas": { "desde": "09:00", "hasta": "20:00" },
+  "sedes": [
+    {
+      "nombre": "Elche (ejemplo)",
+      "nombre_oficial": "Campo de ejemplo de Elche",
+      "servicios": ["Cantina", "Aparcamiento", "Vestuarios"]
+    }
+  ],
+  "portada": {
+    "etiqueta": "EJEMPLO · Fútbol base · F8",
+    "lema": "Torneo de prueba para ver cómo queda la web con dos torneos a la vez. No es real.",
+    "donde": "Elche · 1 sede",
+    "titulo_info": ["Torneo de Ejemplo", "Primavera"],
+    "datos": [
+      ["Fechas", "20-21 de marzo"],
+      ["Dónde", "Elche"],
+      ["Categorías", "Benjamín y Alevín F8"],
+      ["Equipos", "8 por categoría"]
+    ],
+    "inscripcion": "EJEMPLO · Inscripción hasta el 10 de marzo",
+    "inscripcion_url": "https://wa.me/34689355868"
+  },
+  "inicio_bloques": [
+    {
+      "tipo": "texto",
+      "etiqueta": "Ejemplo",
+      "titulo": "Esto es un torneo de prueba",
+      "texto": "Sirve para ver cómo se ve la web cuando hay dos torneos en marcha. Cuando ya no haga falta, se borra."
+    },
+    { "tipo": "sedes", "titulo": "Dónde se juega" }
+  ],
+  "info_bloques": [
+    {
+      "tipo": "texto",
+      "etiqueta": "Ejemplo",
+      "titulo": "El torneo",
+      "texto": "Dos días de fútbol 8 en Elche: Benjamín el sábado y Alevín el domingo.\n\nEste torneo es solo de prueba."
+    },
+    {
+      "tipo": "horario",
+      "titulo": "Qué se juega, cuándo y dónde",
+      "dias": [
+        { "dia": "2027-03-20", "sedes": [[
+          { "categoria": "Benjamín 1º año", "niveles": ["medio"], "franja": "manana" },
+          { "categoria": "Benjamín 2º año", "niveles": ["medio"], "franja": "tarde" }
+        ]] },
+        { "dia": "2027-03-21", "sedes": [[
+          { "categoria": "Alevín 1º año", "niveles": ["iniciacion"], "franja": "manana" },
+          { "categoria": "Alevín 2º año", "niveles": ["elite"], "franja": "tarde" }
+        ]] }
+      ]
+    },
+    { "tipo": "sedes", "titulo": "La sede" },
+    {
+      "tipo": "lista_iconos",
+      "titulo": "Qué incluye",
+      "items": [["silbato", "Árbitros"], ["agua", "Agua y fruta"], ["medalla", "Medallas para todos"]]
+    },
+    {
+      "tipo": "precios",
+      "titulo": "Precios",
+      "pastilla": "Ejemplo",
+      "precios": [["Fútbol 8", "150€", "por equipo"]],
+      "pasos": [["Reserva", "Escríbenos por WhatsApp."]],
+      "botones": true
+    },
+    {
+      "tipo": "preguntas",
+      "titulo": "Preguntas frecuentes",
+      "items": [["¿Es un torneo real?", "No, es un ejemplo para probar la web."]]
+    },
+    { "tipo": "contacto", "titulo": "¿Dudas?" },
+    { "tipo": "opinion", "titulo": "Déjanos tu opinión" }
+  ]
+}

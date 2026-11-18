@@ -115,14 +115,15 @@ class Tarjeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color,
+    // Material (y no una caja pintada) para que los interruptores y listas
+    // de dentro se dibujen bien al tocarlos.
+    return Material(
+      color: color,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radio),
-        border: Border.all(color: borde ?? MarbelColors.borde, width: borde == null ? 1 : 2),
+        side: BorderSide(color: borde ?? MarbelColors.borde, width: borde == null ? 1 : 2),
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
   }
 }

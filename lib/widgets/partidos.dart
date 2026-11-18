@@ -156,9 +156,12 @@ class TarjetaPartido extends StatelessWidget {
 
 /// Tabla de clasificación de una liga.
 class TablaClasificacion extends StatelessWidget {
-  const TablaClasificacion({super.key, required this.ligaId, this.completa = true});
+  const TablaClasificacion({super.key, required this.ligaId, this.completa = true, this.tocable = true});
   final String ligaId;
   final bool completa;
+
+  /// Al tocar un equipo se abre su ficha (partidos, goles, racha).
+  final bool tocable;
 
   @override
   Widget build(BuildContext context) {
@@ -197,36 +200,40 @@ class TablaClasificacion extends StatelessWidget {
           color: fav ? const Color(0x22FFD400) : null,
         ),
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Opacity(
-              opacity: clasifica ? 1 : .6,
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: clasifica ? MarbelColors.cian : const Color(0xFF1E2672),
-                      borderRadius: BorderRadius.circular(7),
+          _TocarEquipo(
+            equipoId: tocable ? f.equipoId : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Opacity(
+                opacity: clasifica ? 1 : .6,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: clasifica ? MarbelColors.cian : const Color(0xFF1E2672),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text('${f.pos}',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: clasifica ? MarbelColors.fondo : MarbelColors.apagado)),
                     ),
-                    child: Text('${f.pos}',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                            color: clasifica ? MarbelColors.fondo : MarbelColors.apagado)),
-                  ),
-                  const SizedBox(width: 8),
-                  Escudo(e, tamano: 24),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('${e?.nombre ?? '?'}${fav ? ' ★' : ''}${f.empatePendiente ? ' *' : ''}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Escudo(e, tamano: 24),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('${e?.nombre ?? '?'}${fav ? ' ★' : ''}${f.empatePendiente ? ' *' : ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                    if (tocable) const Icon(Icons.chevron_right_rounded, size: 16, color: MarbelColors.apagado),
+                  ],
+                ),
               ),
             ),
           ),
@@ -274,6 +281,178 @@ class TablaClasificacion extends StatelessWidget {
           style: TextStyle(color: MarbelColors.medio, fontSize: 12, fontWeight: FontWeight.w600)),
     ]);
   }
+}
+
+/// Celda tocable que abre la ficha de un equipo.
+class _TocarEquipo extends StatelessWidget {
+  const _TocarEquipo({required this.equipoId, required this.child});
+  final String? equipoId;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = equipoId;
+    if (id == null) return child;
+    return Semantics(
+      button: true,
+      label: 'Ver la ficha de ${datos.nombreEquipo(id)}',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => abrirEquipo(context, id),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Ficha de un equipo en el torneo que se está viendo: posición en su liga,
+/// números (PJ, G, E, P, GF, GC), racha y todos sus partidos.
+Future<void> abrirEquipo(BuildContext context, String equipoId) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: MarbelColors.fondo,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (c) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (c, scroll) => ListenableBuilder(
+        listenable: Listenable.merge([datos, favoritos]),
+        builder: (c, _) {
+          final e = datos.equipo(equipoId);
+          final ps = datos.partidosDeEquipo(equipoId)..sort((a, b) => a.hora.compareTo(b.hora));
+          final jugados = ps.where((p) => p.estado == Estado.finalizado && p.tieneMarcador).toList();
+          var g = 0, em = 0, pe = 0, gf = 0, gc = 0;
+          for (final p in jugados) {
+            final local = p.localId == equipoId;
+            final a = local ? p.golesLocal! : p.golesVisitante!;
+            final b = local ? p.golesVisitante! : p.golesLocal!;
+            gf += a;
+            gc += b;
+            final gan = p.ganadorId;
+            if (gan == null) {
+              em++;
+            } else if (gan == equipoId) {
+              g++;
+            } else {
+              pe++;
+            }
+          }
+          final racha = datos.rachaDe(equipoId);
+          final ligas = datos.ligasDeEquipo(equipoId);
+
+          Widget dato(String t, Object v) => Expanded(
+                child: Column(children: [
+                  Text('$v', style: MarbelText.titular(26, color: MarbelColors.cian).copyWith(fontStyle: FontStyle.normal)),
+                  Text(t, style: MarbelText.etiqueta(color: MarbelColors.apagado, size: 11)),
+                ]),
+              );
+
+          return ListView(controller: scroll, padding: const EdgeInsets.fromLTRB(16, 10, 16, 32), children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                decoration: BoxDecoration(color: MarbelColors.borde, borderRadius: BorderRadius.circular(3)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(children: [
+              Escudo(e, tamano: 56),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text((e?.nombre ?? 'Equipo').toUpperCase(),
+                      style: MarbelText.titular(26).copyWith(fontStyle: FontStyle.normal)),
+                  if (datos.torneo != null)
+                    Text(datos.torneo!.nombre, style: const TextStyle(color: MarbelColors.apagado, fontSize: 13)),
+                ]),
+              ),
+              IconButton(
+                tooltip: favoritos.es(equipoId) ? 'Dejar de seguir' : 'Seguir a este equipo',
+                onPressed: () => favoritos.alternar(equipoId),
+                icon: Icon(favoritos.es(equipoId) ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: MarbelColors.medio),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            for (final l in ligas)
+              Builder(builder: (c) {
+                final fila = datos.clasificacion(l.id).where((f) => f.equipoId == equipoId).firstOrNull;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Wrap(spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                    Pastilla.nivel(datos.nivelDeLiga(l.id), texto: datos.nombreLiga(l.id), tamano: 11),
+                    if (fila != null && fila.pj > 0)
+                      Text('${fila.pos}º en la liguilla · ${fila.pts} puntos',
+                          style: const TextStyle(color: MarbelColors.texto2, fontWeight: FontWeight.w700)),
+                  ]),
+                );
+              }),
+            const SizedBox(height: 10),
+            Tarjeta(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+              child: Row(children: [
+                dato('PJ', jugados.length),
+                dato('G', g),
+                dato('E', em),
+                dato('P', pe),
+                dato('GF', gf),
+                dato('GC', gc),
+              ]),
+            ),
+            if (racha.ultimos.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Row(children: [
+                Text('ÚLTIMOS', style: MarbelText.etiqueta(color: MarbelColors.apagado, size: 12)),
+                const SizedBox(width: 10),
+                for (final r in racha.ultimos)
+                  Container(
+                    width: 26,
+                    height: 26,
+                    margin: const EdgeInsets.only(right: 6),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: switch (r) {
+                        'V' => MarbelColors.elite,
+                        'E' => MarbelColors.medio,
+                        _ => const Color(0xFFFF7A85),
+                      },
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Text(r, style: const TextStyle(color: MarbelColors.fondo, fontWeight: FontWeight.w800)),
+                  ),
+                if (racha.racha > 1)
+                  Flexible(
+                    child: Text('${racha.racha} seguidas',
+                        overflow: TextOverflow.ellipsis, style: const TextStyle(color: MarbelColors.apagado, fontSize: 13)),
+                  ),
+              ]),
+            ],
+            const SizedBox(height: 18),
+            Text('PARTIDOS', style: MarbelText.etiqueta(color: MarbelColors.apagado)),
+            const SizedBox(height: 8),
+            if (ps.isEmpty)
+              const Text('Aún no tiene partidos en el calendario.', style: TextStyle(color: MarbelColors.apagado))
+            else
+              for (final p in ps) ...[
+                Text('${diaCorto(p.hora)} · ${hhmm(p.horaReal)}',
+                    style: const TextStyle(color: MarbelColors.apagado, fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                TarjetaPartido(p),
+                const SizedBox(height: 10),
+              ],
+          ]);
+        },
+      ),
+    ),
+  );
 }
 
 /// Un cruce del cuadro final.

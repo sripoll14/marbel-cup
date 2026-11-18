@@ -12,6 +12,7 @@ import 'calendario_screen.dart';
 import 'equipos_screen.dart';
 import 'estadisticas_screen.dart';
 import 'porra_screen.dart';
+import 'resumen_screen.dart';
 import 'torneo_screen.dart';
 
 /// «Torneos»: un banner por cada torneo en marcha (aunque solo haya uno).
@@ -23,7 +24,19 @@ class TorneosScreen extends StatelessWidget {
     return ConDatos(builder: (context) {
       final ancho = esAncho(context);
       final visibles = datos.torneosVisibles;
-      final cuerpo = visibles.isEmpty ? const SinTorneos() : BannersTorneos(visibles);
+      final anteriores = datos.torneosAnteriores;
+      final cuerpo = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        visibles.isEmpty ? const SinTorneos(enlaceAnteriores: false) : BannersTorneos(visibles),
+        if (anteriores.isNotEmpty) ...[
+          SizedBox(height: ancho ? 56 : 36),
+          Text('TORNEOS ANTERIORES', style: MarbelText.titular(ancho ? 40 : 30)),
+          const SizedBox(height: 4),
+          const Text('Resultados, clasificaciones y estadísticas de los torneos que ya se han jugado.',
+              style: TextStyle(color: MarbelColors.texto2)),
+          const SizedBox(height: 16),
+          BannersTorneos(anteriores),
+        ],
+      ]);
       if (!ancho) {
         return ListView(padding: const EdgeInsets.only(bottom: 32), children: [
           const CabeceraMovil('Torneos'),
@@ -59,7 +72,7 @@ class TorneoPagina extends StatelessWidget {
       datos.fijarTorneo(id);
       final t = datos.torneo;
       // No existe, o está oculto y quien mira no es del personal
-      if (t == null || t.id != id || (!t.visible && !sesion.esPersonal)) {
+      if (t == null || t.id != id || (!t.visible && !t.anterior && !sesion.esPersonal)) {
         return Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -73,6 +86,10 @@ class TorneoPagina extends StatelessWidget {
             ]),
           ),
         );
+      }
+      // Torneo terminado: una sola página con el resumen
+      if (t.anterior) {
+        return DentroDeTorneo(child: KeyedSubtree(key: ValueKey('resumen/$id'), child: const ResumenTorneo()));
       }
       final cuerpo = switch (apartado) {
         'calendario' => const CalendarioScreen(),

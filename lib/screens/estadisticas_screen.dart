@@ -7,7 +7,11 @@ import '../widgets/marco_app.dart';
 
 /// Estadísticas calculadas solas a partir de los resultados y goles.
 class EstadisticasScreen extends StatefulWidget {
-  const EstadisticasScreen({super.key});
+  const EstadisticasScreen({super.key, this.incrustada = false});
+
+  /// Dentro de otra página (el resumen de un torneo terminado): sin cabecera
+  /// ni desplazamiento propio.
+  final bool incrustada;
 
   @override
   State<EstadisticasScreen> createState() => _EstadisticasScreenState();
@@ -15,13 +19,16 @@ class EstadisticasScreen extends StatefulWidget {
 
 class _EstadisticasScreenState extends State<EstadisticasScreen> {
   String _grupo = 'Todas';
-  static const _grupos = ['Todas', 'Prebenjamín', 'Benjamín', 'Alevín', 'Infantil F11', 'Sub 12', 'Infantil F8'];
+  /// Filtros: las categorías que tiene este torneo.
+  List<String> get _grupos => ['Todas', ...datos.gruposCategoria];
 
   @override
   Widget build(BuildContext context) {
     return ConDatos(builder: (context) {
       final ancho = esAncho(context);
-      final ps = datos.finalizados(grupoCategoria: _grupo == 'Todas' ? null : _grupo);
+      // Si se cambia de torneo y esa categoría no está, todas
+      final grupo = _grupos.contains(_grupo) ? _grupo : 'Todas';
+      final ps = datos.finalizados(grupoCategoria: grupo == 'Todas' ? null : grupo);
       final ligaIds = ps.map((p) => p.ligaId).toSet();
       final goles = ps.fold<int>(0, (s, p) => s + p.golesLocal! + p.golesVisitante!);
       final empates = ps.where((p) => p.golesLocal == p.golesVisitante).length;
@@ -82,9 +89,10 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
       ];
 
       final contenido = <Widget>[
-        FilaChips(children: [
-          for (final g in _grupos) ChipFiltro(texto: g, elegido: _grupo == g, onTap: () => setState(() => _grupo = g)),
-        ]),
+        if (_grupos.length > 1)
+          FilaChips(children: [
+            for (final g in _grupos) ChipFiltro(texto: g, elegido: grupo == g, onTap: () => setState(() => _grupo = g)),
+          ]),
         const SizedBox(height: 16),
         if (ps.isEmpty)
           const EstadoVacio('Las estadísticas se calculan solas en cuanto haya resultados. ¡Vuelve durante el torneo!',
@@ -199,6 +207,9 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
             style: TextStyle(color: MarbelColors.apagado, fontSize: 13)),
       ];
 
+      if (widget.incrustada) {
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: contenido);
+      }
       if (!ancho) {
         return ListView(
           padding: const EdgeInsets.only(bottom: 32),

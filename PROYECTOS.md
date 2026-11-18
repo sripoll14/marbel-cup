@@ -46,7 +46,6 @@ Si el archivo tiene un error, el panel lo dice al subirlo y no cambia nada.
   "jornadas": ["2026-12-26", "2026-12-27", "2027-01-02", "2027-01-03"],
   "horas": { "desde": "09:00", "hasta": "21:00" },
   "sedes": ["Albatera", "Granja de Rocamora", "Rafal", "Bigastro"],
-  "equipos": "todos",
   "portada": { ... },
   "inicio_bloques": [ ... ],
   "info_bloques": [ ... ]
@@ -63,7 +62,7 @@ Si el archivo tiene un error, el panel lo dice al subirlo y no cambia nada.
 | `jornadas` | Días de juego (cuenta atrás y calendario). Si no se ponen, salen de los partidos. |
 | `horas` | De qué hora a qué hora se juega cada día (por defecto, de 9:00 a 21:00). |
 | `sedes` | Sedes en orden, por su nombre. Si una no existe, se crea al subir el proyecto. Para darle todos sus datos: `{"nombre": "Cartagena", "nombre_oficial": "Campo EF Santa Ana", "maps_url": "https://maps.app.goo.gl/...", "servicios": ["Cantina", "Aparcamiento"], "foto_url": "https://..."}` |
-| `equipos` | `"todos"` = en «Equipos» salen todos los clubes; si no se pone, solo los inscritos en este torneo. |
+| `equipos` | Normalmente no se pone: en «Equipos» salen los clubes inscritos en este torneo (apuntados en el panel, con liga o sin ella). `"todos"` = salen todos los clubes de la web. |
 
 ### `portada`
 

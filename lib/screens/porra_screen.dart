@@ -50,7 +50,7 @@ class _PorraScreenState extends State<PorraScreen> {
                   const Text('Puedes hacer una porra por cada categoría.', style: TextStyle(color: MarbelColors.apagado, fontSize: 13)),
                 ]);
 
-          final ranking = _Ranking(ligaId: ligaId);
+          final ranking = RankingPorra(ligaId: ligaId);
 
           if (!ancho) {
             return ListView(
@@ -429,15 +429,18 @@ class _BotonEquipo extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Ranking
 // ---------------------------------------------------------------------------
-class _Ranking extends StatefulWidget {
-  const _Ranking({required this.ligaId});
+class RankingPorra extends StatefulWidget {
+  const RankingPorra({super.key, required this.ligaId, this.terminado = false});
   final String? ligaId;
 
+  /// Torneo terminado: «Ranking final».
+  final bool terminado;
+
   @override
-  State<_Ranking> createState() => _RankingState();
+  State<RankingPorra> createState() => _RankingPorraState();
 }
 
-class _RankingState extends State<_Ranking> {
+class _RankingPorraState extends State<RankingPorra> {
   bool _soloLiga = false;
   Future<List<FilaRanking>>? _f;
   String? _clave;
@@ -456,7 +459,7 @@ class _RankingState extends State<_Ranking> {
     }
     return Tarjeta(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('🏆 RANKING', style: MarbelText.titular(30).copyWith(fontStyle: FontStyle.normal)),
+        Text(widget.terminado ? '🏆 RANKING FINAL' : '🏆 RANKING', style: MarbelText.titular(30).copyWith(fontStyle: FontStyle.normal)),
         const SizedBox(height: 8),
         if (widget.ligaId != null)
           Wrap(spacing: 8, runSpacing: 8, children: [
@@ -471,7 +474,8 @@ class _RankingState extends State<_Ranking> {
             if (!s.hasData) return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
             final filas = s.data!;
             if (filas.isEmpty) {
-              return const Text('Aún no hay porras. ¡Sé el primero!', style: TextStyle(color: MarbelColors.apagado));
+              return Text(widget.terminado ? 'En este torneo nadie jugó a La Porra.' : 'Aún no hay porras. ¡Sé el primero!',
+                  style: const TextStyle(color: MarbelColors.apagado));
             }
             const medallas = ['🥇', '🥈', '🥉'];
             return Column(children: [

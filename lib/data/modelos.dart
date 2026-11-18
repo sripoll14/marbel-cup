@@ -66,6 +66,9 @@ class Torneo {
 
   /// Se ve en «Torneos actuales»: en curso y publicado.
   bool get visible => activo && publicado;
+
+  /// Se ve en «Torneos anteriores»: ya no está en curso, pero sigue publicado.
+  bool get anterior => !activo && publicado;
   final String fechasTexto;
   final DateTime inicio;
   final DateTime? inscripcionHasta;
@@ -114,14 +117,14 @@ class Categoria {
   /// "Benjamín 1º año" -> "Benjamín 1º"
   String get corto => nombre.replaceAll(' año', '').replaceAll(' femenino', '');
 
-  /// Grupo para los filtros: Prebenjamín, Benjamín, Alevín, Infantil F11, Sub 12, Infantil F8
+  /// Grupo para los filtros: el nombre sin el año ni «femenino».
+  /// "Benjamín 1º año" -> "Benjamín", "Sub 12 femenino" -> "Sub 12", "Cadete" -> "Cadete".
   String get grupo {
-    if (nombre.startsWith('Prebenjamín')) return 'Prebenjamín';
-    if (nombre.startsWith('Benjamín')) return 'Benjamín';
-    if (nombre.startsWith('Alevín')) return 'Alevín';
-    if (nombre.startsWith('Sub 12')) return 'Sub 12';
-    if (nombre.contains('F8')) return 'Infantil F8';
-    return 'Infantil F11';
+    final g = nombre
+        .replaceAll(RegExp(r'\s*\d+\s*[ºª°]?\s*año', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*femenino', caseSensitive: false), '')
+        .trim();
+    return g.isEmpty ? nombre : g;
   }
 }
 

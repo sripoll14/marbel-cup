@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -69,6 +71,7 @@ enum FaseTorneo { antes, descanso, jugando, finalizado }
 
 /// Pastilla con el momento del torneo: «Próximamente», «En juego ahora»...
 Widget pastillaFase(Torneo t, {double tamano = 12}) {
+  if (t.anterior) return Pastilla('Finalizado', fondo: const Color(0xFF1E2672), color: MarbelColors.texto2, tamano: tamano);
   final f = faseDe(t);
   final (texto, fondo, color) = switch (f.fase) {
     FaseTorneo.antes => ('Próximamente', MarbelColors.cian, MarbelColors.fondo),
@@ -151,6 +154,7 @@ class BannerTorneo extends StatelessWidget {
                         Text(t.lugar!, style: const TextStyle(fontWeight: FontWeight.w700)),
                       ]),
                   ]),
+                  if (!t.anterior) ContadorTorneo(t),
                 ]),
               ),
               const SizedBox(width: 12),
@@ -168,12 +172,113 @@ class BannerTorneo extends StatelessWidget {
   }
 }
 
-/// Aviso cuando no hay ningún torneo en marcha.
-class SinTorneos extends StatelessWidget {
-  const SinTorneos({super.key});
+/// Cuenta atrás pequeña de un torneo (para su banner): cuánto falta para que
+/// empiece o para su próxima jornada; mientras se juega, «Se está jugando ahora».
+class ContadorTorneo extends StatefulWidget {
+  const ContadorTorneo(this.t, {super.key});
+  final Torneo t;
+
+  @override
+  State<ContadorTorneo> createState() => _ContadorTorneoState();
+}
+
+class _ContadorTorneoState extends State<ContadorTorneo> {
+  Timer? _reloj;
+
+  @override
+  void initState() {
+    super.initState();
+    _reloj = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _reloj?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final f = faseDe(widget.t);
+    if (f.fase == FaseTorneo.finalizado) return const SizedBox.shrink();
+
+    if (f.fase == FaseTorneo.jugando) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 10, height: 10, decoration: const BoxDecoration(color: MarbelColors.enJuego, shape: BoxShape.circle)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              f.total > 1 ? 'SE ESTÁ JUGANDO · JORNADA ${f.jornada + 1} DE ${f.total}' : 'SE ESTÁ JUGANDO AHORA',
+              style: MarbelText.etiqueta(size: 13),
+            ),
+          ),
+        ]),
+      );
+    }
+
+    var resta = f.objetivo.difference(DateTime.now());
+    if (resta.isNegative) resta = Duration.zero;
+    final d = resta.inDays, h = resta.inHours % 24, m = resta.inMinutes % 60, sg = resta.inSeconds % 60;
+    String dos(int x) => x.toString().padLeft(2, '0');
+    final unidades = [
+      if (d > 0) ('$d', d == 1 ? 'DÍA' : 'DÍAS'),
+      (dos(h), 'H'),
+      (dos(m), 'MIN'),
+      (dos(sg), 'SEG'),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(f.fase == FaseTorneo.antes ? 'EMPIEZA EN' : 'PRÓXIMA JORNADA EN',
+            style: MarbelText.etiqueta(color: MarbelColors.texto2, size: 11)),
+        const SizedBox(height: 6),
+        Semantics(
+          label: '${f.fase == FaseTorneo.antes ? 'Empieza en' : 'Próxima jornada en'} '
+              '${d > 0 ? '$d días, ' : ''}$h horas y $m minutos',
+          excludeSemantics: true,
+          child: Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final (i, (n, u)) in unidades.indexed)
+              Container(
+                constraints: const BoxConstraints(minWidth: 52),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: MarbelColors.fondo.withValues(alpha: .55),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: MarbelColors.borde),
+                ),
+                child: Column(children: [
+                  Text(n,
+                      style: MarbelText.titular(24, color: i == 0 ? MarbelColors.cian : MarbelColors.blanco)
+                          .copyWith(fontStyle: FontStyle.normal, height: 1.05)),
+                  Text(u, style: MarbelText.etiqueta(color: MarbelColors.apagado, size: 10)),
+                ]),
+              ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Aviso cuando no hay ningún torneo en marcha.
+class SinTorneos extends StatelessWidget {
+  const SinTorneos({super.key, this.enlaceAnteriores = true});
+
+  /// Botón «Ver torneos anteriores» (si los hay). En la página Torneos no
+  /// hace falta: salen justo debajo.
+  final bool enlaceAnteriores;
+
+  // Se vuelve a pintar cuando cambian los datos (aunque se use con `const`)
+  @override
+  Widget build(BuildContext context) =>
+      ListenableBuilder(listenable: datos, builder: (context, _) => _pintar(context));
+
+  Widget _pintar(BuildContext context) {
     final ancho = esAncho(context);
     return Tarjeta(
       padding: EdgeInsets.all(ancho ? 32 : 22),
@@ -188,6 +293,8 @@ class SinTorneos extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Wrap(spacing: 10, runSpacing: 10, children: [
+          if (enlaceAnteriores && datos.torneosAnteriores.isNotEmpty)
+            BotonCian('Ver torneos anteriores', icono: Icons.emoji_events_rounded, onTap: () => context.go('/torneos')),
           BotonCian('Instagram', icono: Marca.instagram, onTap: () => abrir(Contenido.instagramUrl)),
           BotonContorno('WhatsApp', icono: Marca.whatsapp, onTap: () => abrir(Contenido.whatsappUrl1)),
           BotonContorno('Galería', onTap: () => context.go('/galeria')),
@@ -235,8 +342,12 @@ class TarjetaSede extends StatelessWidget {
 class SedesDelTorneo extends StatelessWidget {
   const SedesDelTorneo({super.key});
 
+  // Se vuelve a pintar cuando cambian los datos (aunque se use con `const`)
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ListenableBuilder(listenable: datos, builder: (context, _) => _pintar(context));
+
+  Widget _pintar(BuildContext context) {
     final sedes = datos.sedesTorneo;
     if (sedes.isEmpty) return const EstadoVacio('La sede se publicará pronto.');
     return LayoutBuilder(builder: (context, c) {

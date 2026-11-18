@@ -99,7 +99,7 @@ class SeccionCalendario extends StatelessWidget {
       if (ligas.isEmpty) const EstadoVacio('Aún no hay ligas. Se crean al inscribir equipos en «Equipos e inscripciones».'),
       for (final l in ligas) _FilaLiga(l, pedirDatos: _pedirDatos),
       const SizedBox(height: 20),
-      const SubTitulo('Sedes de este torneo'),
+      SubTitulo('Sedes de ${datos.torneo?.nombre ?? 'este torneo'}'),
       for (final s in datos.sedesTorneo) ...[
         Tarjeta(
           padding: const EdgeInsets.all(14),

@@ -38,6 +38,19 @@ class Datos extends ChangeNotifier {
   List<Liga> ligas = [];
   Map<String, List<String>> equiposDeLiga = {}; // liga -> equipos
 
+  /// Clubes apuntados a cada torneo aunque aún no tengan liga (torneo -> equipos).
+  Map<String, Set<String>> apuntados = {};
+
+  /// Clubes inscritos en un torneo: los apuntados y los que están en sus ligas.
+  Set<String> inscritosEn(Torneo? t) {
+    if (t == null) return {};
+    return {
+      ...?apuntados[t.id],
+      for (final l in ligas)
+        if (l.torneoId == t.id) ...?equiposDeLiga[l.id],
+    };
+  }
+
   /// Orden a mano de la clasificación ("liga|equipo" -> posición), para empates.
   Map<String, int> ordenManual = {};
   /// Partidos, goles y avisos del torneo elegido.
@@ -71,7 +84,7 @@ class Datos extends ChangeNotifier {
 
   static const _tablas = [
     'torneos', 'sedes', 'categorias', 'equipos', 'ligas',
-    'liga_equipos', 'partidos', 'goles', 'avisos', 'fotos',
+    'liga_equipos', 'partidos', 'goles', 'avisos', 'fotos', 'torneo_equipos',
   ];
   static const _claveCopia = 'copia_datos_v1';
 
@@ -110,6 +123,15 @@ class Datos extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Una tabla que puede no existir todavía (si falta su SQL): vacía.
+  Future<Filas> _opcional(Future<Filas> consulta) async {
+    try {
+      return await consulta;
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<void> recargar() async {
     final r = await Future.wait<Filas>([
       db.from('torneos').select().order('inicio', ascending: false),
@@ -122,6 +144,7 @@ class Datos extends ChangeNotifier {
       db.from('goles').select(),
       db.from('avisos').select().order('creado', ascending: false).limit(100),
       db.from('fotos').select().order('orden', ascending: true),
+      _opcional(db.from('torneo_equipos').select()),
     ]);
     for (var i = 0; i < _tablas.length; i++) {
       _filas[_tablas[i]] = r[i];
@@ -187,6 +210,10 @@ class Datos extends ChangeNotifier {
       equiposDeLiga.putIfAbsent(m['liga_id'] as String, () => []).add(m['equipo_id'] as String);
       final o = m['orden_manual'];
       if (o != null) ordenManual['${m['liga_id']}|${m['equipo_id']}'] = (o as num).toInt();
+    }
+    apuntados = {};
+    for (final m in _de('torneo_equipos')) {
+      apuntados.putIfAbsent(m['torneo_id'] as String, () => {}).add(m['equipo_id'] as String);
     }
     todosPartidos = _de('partidos').map(Partido.fromMap).toList()..sort((a, b) => a.hora.compareTo(b.hora));
     todosGoles = _de('goles').map(Gol.fromMap).toList();
@@ -311,6 +338,11 @@ class Datos extends ChangeNotifier {
   List<Torneo> get torneosVisibles => torneos.where((t) => t.visible).toList()
     ..sort((a, b) => a.inicio.compareTo(b.inicio));
 
+  /// Torneos que ya acabaron y siguen publicados («Torneos anteriores»),
+  /// del más reciente al más antiguo.
+  List<Torneo> get torneosAnteriores => torneos.where((t) => t.anterior).toList()
+    ..sort((a, b) => b.inicio.compareTo(a.inicio));
+
   /// Último día con partidos de un torneo (o su primer día si aún no hay calendario).
   DateTime finDe(Torneo t) {
     final ligasT = {for (final l in ligas) if (l.torneoId == t.id) l.id};
@@ -326,7 +358,7 @@ class Datos extends ChangeNotifier {
   Torneo? _torneoAEnsenar() {
     // 1. El que haya elegido (los ocultos, solo el personal, para prepararlos)
     final elegido = torneos.where((t) => t.id == _elegido).firstOrNull;
-    if (elegido != null && (elegido.visible || sesion.esPersonal)) return elegido;
+    if (elegido != null && (elegido.visible || elegido.anterior || sesion.esPersonal)) return elegido;
     // 2. El próximo (o el que se está jugando) de los torneos actuales
     final visibles = torneosVisibles;
     final hoy = soloDia(DateTime.now());
@@ -576,6 +608,16 @@ class Datos extends ChangeNotifier {
   // -------------------------------------------------------------------------
   // Estadísticas
   // -------------------------------------------------------------------------
+  /// Grupos de categorías (para los filtros) que tiene de verdad el torneo
+  /// elegido, en el orden de las categorías: "Prebenjamín", "Benjamín", "Cadete"...
+  List<String> get gruposCategoria {
+    final cats = [
+      for (final l in ligasActuales)
+        if (categoria(l.categoriaId) != null) categoria(l.categoriaId)!,
+    ]..sort((a, b) => a.orden.compareTo(b.orden));
+    return [...{for (final c in cats) c.grupo}];
+  }
+
   List<Partido> finalizados({String? grupoCategoria}) => partidos.where((p) {
         if (p.estado != Estado.finalizado || !p.tieneMarcador) return false;
         if (grupoCategoria == null) return true;

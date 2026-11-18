@@ -39,7 +39,11 @@ class TorneoScreen extends StatelessWidget {
               if (cats.isNotEmpty) ('Categorías', cats),
             ];
 
-      var bloques = p?.bloquesInfo ?? const <Map<String, dynamic>>[];
+      // El cuadro «qué se juega, cuándo y dónde» ya sale en Calendario: aquí no
+      var bloques = [
+        for (final b in p?.bloquesInfo ?? const <Map<String, dynamic>>[])
+          if (b['tipo'] != 'horario') b,
+      ];
       // «Déjanos tu opinión» siempre al final de la página del torneo
       if (bloques.isNotEmpty && !bloques.any((b) => b['tipo'] == 'opinion')) {
         bloques = [

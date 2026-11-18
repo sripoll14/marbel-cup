@@ -146,7 +146,7 @@ class _SeccionPersonalState extends State<SeccionPersonal> {
                       valor: p.sedeId,
                       // Sedes de los torneos en curso (y la que ya tenga, aunque sea de otro)
                       opciones: [
-                        for (final s in datos.sedesEnCurso) (s.id, s.nombre),
+                        for (final s in datos.sedesEnCurso) (s.id, _conTorneo(s)),
                         if (p.sedeId != null && !datos.sedesEnCurso.any((s) => s.id == p.sedeId))
                           (p.sedeId!, datos.sede(p.sedeId)?.nombre ?? 'Otra sede'),
                       ],
@@ -161,4 +161,12 @@ class _SeccionPersonalState extends State<SeccionPersonal> {
       }(),
     ]);
   }
+}
+
+/// «Albatera» o, si hay varios torneos en curso, «Albatera (IV Torneo Navideño)».
+String _conTorneo(Sede s) {
+  final enCurso = datos.torneos.where((t) => t.activo).toList();
+  if (enCurso.length < 2) return s.nombre;
+  final de = [for (final t in enCurso) if (datos.sedesDe(t).any((x) => x.id == s.id)) t.nombre];
+  return de.isEmpty ? s.nombre : '${s.nombre} (${de.join(', ')})';
 }

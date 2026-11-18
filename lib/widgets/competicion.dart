@@ -107,8 +107,12 @@ class _CompeticionState extends State<Competicion> {
   String? _liga;
   bool _final = false;
 
+  // Se vuelve a pintar cuando cambian los datos (aunque se use con `const`)
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ListenableBuilder(listenable: datos, builder: (context, _) => _pintar(context));
+
+  Widget _pintar(BuildContext context) {
     return ListenableBuilder(
       listenable: Listenable.merge([datos, favoritos]),
       builder: (context, _) {

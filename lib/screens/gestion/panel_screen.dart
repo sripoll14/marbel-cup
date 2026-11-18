@@ -234,11 +234,16 @@ class _PanelScreenState extends State<PanelScreen> {
 class _SelectorTorneo extends StatelessWidget {
   const _SelectorTorneo();
 
+  // Se vuelve a pintar cuando cambian los datos (aunque se use con `const`)
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ListenableBuilder(listenable: datos, builder: (context, _) => _pintar(context));
+
+  Widget _pintar(BuildContext context) {
     final torneos = [...datos.torneos]..sort((a, b) => b.inicio.compareTo(a.inicio));
     final actual = datos.torneo;
-    if (torneos.length < 2 || actual == null) return const SizedBox.shrink();
+    if (actual == null) return const SizedBox.shrink();
+    final sedes = datos.sedesTorneo.map((s) => s.nombre).join(', ');
     String estado(Torneo t) => [
           t.activo ? 'en curso' : 'no en curso',
           t.publicado ? 'publicado' : 'oculto',
@@ -249,6 +254,9 @@ class _SelectorTorneo extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
         Text('TORNEO', style: MarbelText.etiqueta(color: MarbelColors.apagado, size: 12)),
+        if (torneos.length < 2)
+          Text(actual.nombre, style: const TextStyle(fontWeight: FontWeight.w800, color: MarbelColors.cian, fontSize: 15))
+        else
         DropdownButton<String>(
           value: actual.id,
           underline: const SizedBox.shrink(),
@@ -262,7 +270,9 @@ class _SelectorTorneo extends StatelessWidget {
             if (v != null) datos.elegirTorneo(v);
           },
         ),
-        const Text('Equipos, calendario, avisos y opiniones son de este torneo.',
+        Text(sedes.isEmpty ? 'Sin sedes' : 'Sedes: $sedes',
+            style: const TextStyle(color: MarbelColors.texto2, fontSize: 13, fontWeight: FontWeight.w700)),
+        const Text('Todo el panel (equipos, calendario, partidos, sedes, avisos y opiniones) es de este torneo.',
             style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
       ]),
     );

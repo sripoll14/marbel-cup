@@ -238,7 +238,8 @@ class SeccionTorneos extends StatelessWidget {
       const SizedBox(height: 8),
       const Text(
         'Puede haber varios torneos a la vez: en la web, en «Torneos actuales», salen los que estén EN CURSO y PUBLICADOS. '
-        'Un torneo oculto no lo ve el público, pero sí el personal, para prepararlo.',
+        'Un torneo oculto no lo ve el público, pero sí el personal, para prepararlo. '
+        'Cuando acabe, apaga EN CURSO y deja PUBLICADO: pasa a «Torneos anteriores», con su resumen (campeones, clasificaciones y estadísticas).',
         style: TextStyle(color: MarbelColors.apagado, height: 1.4),
       ),
       const SizedBox(height: 12),
@@ -255,6 +256,8 @@ class SeccionTorneos extends StatelessWidget {
               Text(t.nombre, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
               if (t.visible)
                 const Pastilla('En la web', fondo: MarbelColors.elite, color: MarbelColors.fondo, tamano: 11)
+              else if (t.anterior)
+                const Pastilla('En «Torneos anteriores»', fondo: MarbelColors.medio, color: MarbelColors.fondo, tamano: 11)
               else
                 const Pastilla('No se ve en la web', fondo: Color(0xFF1E2672), color: MarbelColors.texto2, tamano: 11),
               if (t.proyecto == null)

@@ -28,10 +28,13 @@ class _SeccionPartidosState extends State<SeccionPartidos> {
     if (mesa && sedeFija == null) {
       return const EstadoVacio('Tu cuenta de mesa no tiene sede asignada. Pide a administración que te la asigne.');
     }
-    final sedeId = sedeFija ?? _sede;
-    // Partidos de todos los torneos en curso (y del que se está preparando),
-    // para que la mesa vea los suyos sin tener que elegir torneo.
-    final enCurso = {for (final t in datos.torneos) if (t.activo || t.id == datos.torneo?.id) t.id};
+    // Si se cambia de torneo, la sede elegida puede no ser de este: entonces todas
+    final sedeId = sedeFija ?? (datos.sedesTorneo.any((s) => s.id == _sede) ? _sede : null);
+    // La mesa: los partidos de su sede en cualquier torneo en curso (sin tener
+    // que elegir torneo). El resto: los del torneo elegido arriba.
+    final enCurso = mesa
+        ? {for (final t in datos.torneos) if (t.activo || t.id == datos.torneo?.id) t.id}
+        : {if (datos.torneo != null) datos.torneo!.id};
     final ligasEnCurso = {for (final l in datos.ligas) if (enCurso.contains(l.torneoId)) l.id};
     final base = datos.todosPartidos.where((p) => ligasEnCurso.contains(p.ligaId)).toList();
     final variosTorneos = {for (final p in base) datos.liga(p.ligaId)?.torneoId}.length > 1;
@@ -60,8 +63,8 @@ class _SeccionPartidosState extends State<SeccionPartidos> {
       const SizedBox(height: 12),
       if (!mesa)
         FilaChips(children: [
-          ChipFiltro(texto: 'Todas las sedes', elegido: _sede == null, onTap: () => setState(() => _sede = null)),
-          for (final s in datos.sedesEnCurso) ChipFiltro(texto: s.corto, elegido: _sede == s.id, onTap: () => setState(() => _sede = s.id)),
+          ChipFiltro(texto: 'Todas las sedes', elegido: sedeId == null, onTap: () => setState(() => _sede = null)),
+          for (final s in datos.sedesTorneo) ChipFiltro(texto: s.corto, elegido: sedeId == s.id, onTap: () => setState(() => _sede = s.id)),
         ]),
       const SizedBox(height: 10),
       FilaChips(children: [

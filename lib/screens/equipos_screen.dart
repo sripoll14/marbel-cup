@@ -22,7 +22,8 @@ class _EquiposScreenState extends State<EquiposScreen> {
   String _nivel = 'todos';
   String _genero = 'Todos';
 
-  static const _grupos = ['Todas', 'Prebenjamín', 'Benjamín', 'Alevín', 'Infantil F11', 'Sub 12', 'Infantil F8'];
+  /// Filtros: las categorías que tiene este torneo.
+  List<String> get _grupos => ['Todas', ...datos.gruposCategoria];
 
   /// Categoría y nivel de un equipo (según las ligas en las que está).
   List<(Categoria?, Nivel)> _ligas(Equipo e) => datos
@@ -30,11 +31,11 @@ class _EquiposScreenState extends State<EquiposScreen> {
       .map((l) => (datos.categoria(l.categoriaId), Nivel.de(l.nivelId)))
       .toList();
 
-  /// Equipos que se enseñan: todos los clubes si el proyecto lo pide
-  /// ("equipos": "todos"); si no, solo los inscritos en sus ligas.
+  /// Equipos que se enseñan: los inscritos en este torneo (con liga o aún
+  /// sin ella). Si el proyecto pide "equipos": "todos", todos los clubes.
   List<Equipo> get _base {
-    if (datos.proyecto?.todosLosEquipos ?? true) return datos.equipos;
-    final ids = {for (final l in datos.ligasActuales) ...?datos.equiposDeLiga[l.id]};
+    if (datos.proyecto?.todosLosEquipos ?? false) return datos.equipos;
+    final ids = datos.inscritosEn(datos.torneo);
     return datos.equipos.where((e) => ids.contains(e.id)).toList();
   }
 
@@ -43,7 +44,7 @@ class _EquiposScreenState extends State<EquiposScreen> {
     return _base.where((e) {
       if (q.isNotEmpty && !('${e.nombre} ${e.localidad ?? ''}'.toLowerCase().contains(q))) return false;
       final ls = _ligas(e);
-      if (_cat != 'Todas' && !ls.any((x) => x.$1?.grupo == _cat)) return false;
+      if (_cat != 'Todas' && _grupos.contains(_cat) && !ls.any((x) => x.$1?.grupo == _cat)) return false;
       if (_nivel != 'todos' && !ls.any((x) => x.$2.id == _nivel)) return false;
       if (_genero != 'Todos') {
         final fem = ls.any((x) => x.$1?.femenina ?? false);
@@ -75,9 +76,13 @@ class _EquiposScreenState extends State<EquiposScreen> {
         ),
       );
 
-  Widget _chipsCategoria() => FilaChips(children: [
-        for (final c in _grupos) ChipFiltro(texto: c, elegido: _cat == c, onTap: () => setState(() => _cat = c)),
-      ]);
+  Widget _chipsCategoria() {
+    if (_grupos.length < 2) return const SizedBox.shrink();
+    final elegida = _grupos.contains(_cat) ? _cat : 'Todas';
+    return FilaChips(children: [
+      for (final c in _grupos) ChipFiltro(texto: c, elegido: elegida == c, onTap: () => setState(() => _cat = c)),
+    ]);
+  }
 
   Widget _web(BuildContext context) {
     final lista = _filtrados();
@@ -92,7 +97,7 @@ class _EquiposScreenState extends State<EquiposScreen> {
           spacing: 24,
           runSpacing: 16,
           children: [
-            TituloSeccion(etiqueta: t?.nombre ?? 'IV Torneo Navideño', titulo: 'Equipos inscritos', tamano: 80),
+            TituloSeccion(etiqueta: t?.nombre ?? 'Torneo', titulo: 'Equipos inscritos', tamano: 80),
             Wrap(spacing: 12, runSpacing: 12, children: [
               Tarjeta(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
