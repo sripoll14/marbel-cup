@@ -3,18 +3,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/contenido.dart';
 import '../data/datos.dart';
 import '../data/favoritos.dart';
 import '../data/modelos.dart';
 import '../theme/app_theme.dart';
 import '../widgets/carrusel.dart';
 import '../widgets/comunes.dart';
-import '../widgets/competicion.dart';
-import '../widgets/mapa_sedes.dart';
 import '../widgets/marco_app.dart';
 import '../widgets/partidos.dart';
+import '../widgets/torneos.dart';
 
+/// Inicio: la portada.
+/// · Un torneo en marcha → su portada (cuenta atrás, avisos, partidos).
+/// · Varios → portada de Marbel con un banner por torneo.
+/// · Ninguno → portada de Marbel con el aviso de que no hay torneos en marcha.
 class InicioScreen extends StatelessWidget {
   const InicioScreen({super.key});
 
@@ -26,38 +28,36 @@ class InicioScreen extends StatelessWidget {
         builder: (context, _) {
           final ancho = esAncho(context);
           final hueco = SizedBox(height: ancho ? 56 : 36);
+          final visibles = datos.torneosVisibles;
+          if (visibles.length == 1) datos.fijarTorneo(visibles.first.id);
+          final uno = visibles.length == 1 ? visibles.first : null;
           return PaginaPublica(
             children: [
               // Sin `const` en lo que lee datos: así se repinta en cuanto llega un gol o un aviso.
-              if (!ancho) _CabeceraApp(),
-              _Hero(),
-              hueco,
-              AnchoMax(child: _Avisos()),
-              hueco,
-              AnchoMax(child: _EnDirecto()),
-              hueco,
-              AnchoMax(child: Competicion()),
-              hueco,
-              const AnchoMax(child: _Niveles()),
-              hueco,
-              AnchoMax(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const TituloSeccion(
-                      etiqueta: 'Vega Baja · Alicante',
-                      titulo: '4 sedes, 10–15 min entre ellas',
-                      subtitulo:
-                          'Amplía la Vega Baja y pasa el ratón (o toca) una chincheta para ver la sede, qué se juega allí y cómo llegar.',
-                    ),
-                    const SizedBox(height: 18),
-                    if (datos.sedes.isEmpty)
-                      const EstadoVacio('Las sedes aún no están cargadas.')
-                    else
-                      MapaSedes(sedes: [for (final s in datos.sedes) s.raw]),
-                  ],
+              if (!ancho) _CabeceraApp(torneo: uno),
+              if (uno != null) ...[
+                _Hero(uno),
+                hueco,
+                AnchoMax(child: _Avisos(uno)),
+                hueco,
+                AnchoMax(child: _EnDirecto([uno])),
+              ] else ...[
+                _PortadaMarbel(hayTorneos: visibles.isNotEmpty),
+                hueco,
+                AnchoMax(
+                  child: visibles.isEmpty
+                      ? const SinTorneos()
+                      : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          const TituloSeccion(etiqueta: 'Elige uno para ver toda su información', titulo: 'Torneos en marcha'),
+                          const SizedBox(height: 18),
+                          BannersTorneos(visibles),
+                        ]),
                 ),
-              ),
+                if (visibles.isNotEmpty) ...[
+                  hueco,
+                  AnchoMax(child: _EnDirecto(visibles)),
+                ],
+              ],
               hueco,
               AnchoMax(child: _Momentazos()),
             ],
@@ -69,14 +69,16 @@ class InicioScreen extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Cabecera móvil (logo + campana de avisos)
+// Cabecera móvil (logo + campana de avisos del torneo)
 // ---------------------------------------------------------------------------
 class _CabeceraApp extends StatelessWidget {
-  const _CabeceraApp();
+  const _CabeceraApp({this.torneo});
+  final Torneo? torneo;
 
   @override
   Widget build(BuildContext context) {
-    final nuevos = datos.avisos.where((a) => a.creado.isAfter(favoritos.vistoHasta)).length;
+    final t = torneo;
+    final nuevos = t == null ? 0 : datos.avisos.where((a) => a.creado.isAfter(favoritos.vistoHasta)).length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 4),
       child: Row(
@@ -91,16 +93,17 @@ class _CabeceraApp extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Badge(
-            isLabelVisible: nuevos > 0,
-            label: Text('$nuevos'),
-            backgroundColor: MarbelColors.enJuego,
-            child: IconButton(
-              tooltip: 'Avisos',
-              onPressed: () => context.go('/avisos'),
-              icon: const Icon(Icons.notifications_rounded, size: 28),
+          if (t != null)
+            Badge(
+              isLabelVisible: nuevos > 0,
+              label: Text('$nuevos'),
+              backgroundColor: MarbelColors.enJuego,
+              child: IconButton(
+                tooltip: 'Avisos',
+                onPressed: () => context.go(rutaTorneo('avisos', t.id)),
+                icon: const Icon(Icons.notifications_rounded, size: 28),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -108,45 +111,94 @@ class _CabeceraApp extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Portada + cuenta atrás
+// Portada de Marbel (cuando no hay un único torneo)
 // ---------------------------------------------------------------------------
-enum _Fase { antes, descanso, jugando, finalizado }
-
-({_Fase fase, DateTime objetivo, int jornada}) _faseActual() {
-  final ahora = DateTime.now();
-  final js = Contenido.jornadas;
-  for (var i = 0; i < js.length; i++) {
-    final ini = js[i].add(const Duration(hours: 9));
-    final fin = js[i].add(const Duration(hours: 21));
-    if (!ahora.isBefore(ini) && !ahora.isAfter(fin)) {
-      return (fase: _Fase.jugando, objetivo: ini, jornada: i);
-    }
-  }
-  for (var i = 0; i < js.length; i++) {
-    final ini = js[i].add(const Duration(hours: 9));
-    if (ini.isAfter(ahora)) {
-      return (fase: i == 0 ? _Fase.antes : _Fase.descanso, objetivo: ini, jornada: i);
-    }
-  }
-  return (fase: _Fase.finalizado, objetivo: ahora, jornada: js.length - 1);
-}
-
-class _Hero extends StatelessWidget {
-  const _Hero();
+class _PortadaMarbel extends StatelessWidget {
+  const _PortadaMarbel({required this.hayTorneos});
+  final bool hayTorneos;
 
   @override
   Widget build(BuildContext context) {
     final ancho = esAncho(context);
-    final t = datos.torneo;
-    final f = _faseActual();
-    final (etiqueta, fondoEt, colorEt) = switch (f.fase) {
-      _Fase.antes => ('Inscripción abierta', MarbelColors.cian, MarbelColors.fondo),
-      _Fase.descanso => ('En juego · próxima jornada ${f.objetivo.day} ${mesCorto(f.objetivo)}',
-          MarbelColors.enJuego, MarbelColors.blanco),
-      _Fase.jugando => ('En juego ahora', MarbelColors.enJuego, MarbelColors.blanco),
-      _Fase.finalizado => ('Finalizado', const Color(0xFF1E2672), MarbelColors.texto2),
-    };
-    final nombre = (t?.nombre ?? 'IV Torneo Navideño').toUpperCase();
+    final texto = Column(
+      crossAxisAlignment: ancho ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        Text('TORNEOS DE FÚTBOL BASE', textAlign: ancho ? TextAlign.start : TextAlign.center, style: MarbelText.etiqueta(size: ancho ? 15 : 12)),
+        const SizedBox(height: 8),
+        Text.rich(
+          TextSpan(children: [
+            TextSpan(text: 'MARBEL', style: MarbelText.titular(ancho ? 112 : 58)),
+            const TextSpan(text: '\n'),
+            TextSpan(text: 'FOOTBALL CUP', style: MarbelText.titular(ancho ? 112 : 58, color: MarbelColors.cian)),
+          ]),
+          textAlign: ancho ? TextAlign.start : TextAlign.center,
+        ),
+        const SizedBox(height: 14),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Text(
+            hayTorneos
+                ? 'Fútbol, diversión y competición. Elige tu torneo para ver su calendario, los equipos, la clasificación y La Porra.'
+                : 'Fútbol, diversión y competición para equipos federados, escuelas y academias.',
+            textAlign: ancho ? TextAlign.start : TextAlign.center,
+            style: TextStyle(fontSize: ancho ? 20 : 16, height: 1.5, color: const Color(0xFFC8D0F5)),
+          ),
+        ),
+        if (hayTorneos) ...[
+          const SizedBox(height: 22),
+          BotonCian('Ver los torneos', icono: Icons.arrow_forward_rounded, onTap: () => context.go('/torneos')),
+        ],
+      ],
+    );
+    return _FondoPortada(
+      child: ancho
+          ? Row(children: [
+              Expanded(flex: 6, child: texto),
+              const SizedBox(width: 24),
+              const Expanded(flex: 5, child: Center(child: LogoMarbel(tamano: 380, brillo: true))),
+            ])
+          : Column(children: [const LogoMarbel(tamano: 150, brillo: true), const SizedBox(height: 18), texto]),
+    );
+  }
+}
+
+class _FondoPortada extends StatelessWidget {
+  const _FondoPortada({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final ancho = esAncho(context);
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(-0.6, -0.3),
+          radius: 1.3,
+          colors: [MarbelColors.azul, Color(0xFF1A1FA8), MarbelColors.fondo],
+          stops: [0, .35, .85],
+        ),
+      ),
+      child: AnchoMax(
+        padding: EdgeInsets.fromLTRB(ancho ? 24 : 16, ancho ? 56 : 24, ancho ? 24 : 16, ancho ? 56 : 32),
+        child: child,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Portada de un torneo + cuenta atrás
+// ---------------------------------------------------------------------------
+class _Hero extends StatelessWidget {
+  const _Hero(this.t);
+  final Torneo t;
+
+  @override
+  Widget build(BuildContext context) {
+    final ancho = esAncho(context);
+    final p = t.proyecto;
+    final lema = p?.lema;
+    final nombre = t.nombre.toUpperCase();
     final partes = nombre.split(' ');
     final linea1 = partes.length > 2 ? partes.sublist(0, partes.length - 1).join(' ') : nombre;
     final linea2 = partes.length > 2 ? partes.last : '';
@@ -159,12 +211,12 @@ class _Hero extends StatelessWidget {
           runSpacing: 8,
           alignment: ancho ? WrapAlignment.start : WrapAlignment.center,
           children: [
-            const Pastilla('Torneo actual', fondo: MarbelColors.azul, color: MarbelColors.blanco, tamano: 13),
-            Pastilla(etiqueta, fondo: fondoEt, color: colorEt, tamano: 13),
+            const Pastilla('Torneo en marcha', fondo: MarbelColors.azul, color: MarbelColors.blanco, tamano: 13),
+            pastillaFase(t, tamano: 13),
           ],
         ),
         const SizedBox(height: 14),
-        Text('FÚTBOL BASE · F8 Y F11 · MASCULINO Y FEMENINO',
+        Text((p?.etiqueta ?? 'Fútbol base').toUpperCase(),
             textAlign: ancho ? TextAlign.start : TextAlign.center,
             style: MarbelText.etiqueta(size: ancho ? 15 : 12)),
         const SizedBox(height: 8),
@@ -179,20 +231,20 @@ class _Hero extends StatelessWidget {
           textAlign: ancho ? TextAlign.start : TextAlign.center,
         ),
         const SizedBox(height: 14),
-        if (ancho)
+        if (ancho && lema != null && lema.isNotEmpty) ...[
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
-            child: const Text(Contenido.lema,
-                style: TextStyle(fontSize: 20, height: 1.5, color: Color(0xFFC8D0F5))),
+            child: Text(lema, style: const TextStyle(fontSize: 20, height: 1.5, color: Color(0xFFC8D0F5))),
           ),
-        if (ancho) const SizedBox(height: 22),
+          const SizedBox(height: 22),
+        ],
         Wrap(
           spacing: 28,
           runSpacing: 12,
           alignment: ancho ? WrapAlignment.start : WrapAlignment.center,
           children: [
-            _Dato('Fechas', (t?.fechasTexto ?? '26–27 dic · 2–3 ene').toUpperCase()),
-            const _Dato('Dónde', 'VEGA BAJA · 4 SEDES'),
+            _Dato('Fechas', t.fechasTexto.toUpperCase()),
+            if (t.lugar != null) _Dato('Dónde', t.lugar!.toUpperCase()),
           ],
         ),
         const SizedBox(height: 22),
@@ -201,43 +253,34 @@ class _Hero extends StatelessWidget {
           runSpacing: 10,
           alignment: ancho ? WrapAlignment.start : WrapAlignment.center,
           children: [
-            BotonCian('Toda la info', icono: Icons.arrow_forward_rounded, onTap: () => context.go('/torneo')),
-            BotonContorno('Calendario', onTap: () => context.go('/calendario')),
+            BotonCian('Entrar al torneo', icono: Icons.arrow_forward_rounded, onTap: () => context.go(rutaTorneo('', t.id))),
+            BotonContorno('Calendario', onTap: () => context.go(rutaTorneo('calendario', t.id))),
+            if (faseDe(t).fase != FaseTorneo.finalizado)
+              BotonContorno('Inscribe tu equipo', onTap: () => abrir(enlaceInscripcion(t))),
           ],
         ),
       ],
     );
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment(-0.6, -0.3),
-          radius: 1.3,
-          colors: [MarbelColors.azul, Color(0xFF1A1FA8), MarbelColors.fondo],
-          stops: [0, .35, .85],
-        ),
-      ),
-      child: AnchoMax(
-        padding: EdgeInsets.fromLTRB(ancho ? 24 : 16, ancho ? 56 : 24, ancho ? 24 : 16, ancho ? 56 : 32),
-        child: Column(
-          children: [
-            if (ancho)
-              Row(
-                children: [
-                  Expanded(flex: 6, child: texto),
-                  const SizedBox(width: 24),
-                  const Expanded(flex: 5, child: Center(child: LogoMarbel(tamano: 420, brillo: true))),
-                ],
-              )
-            else ...[
-              const LogoMarbel(tamano: 150, brillo: true),
-              const SizedBox(height: 18),
-              texto,
-            ],
-            SizedBox(height: ancho ? 48 : 28),
-            const _CuentaAtras(),
+    return _FondoPortada(
+      child: Column(
+        children: [
+          if (ancho)
+            Row(
+              children: [
+                Expanded(flex: 6, child: texto),
+                const SizedBox(width: 24),
+                const Expanded(flex: 5, child: Center(child: LogoMarbel(tamano: 420, brillo: true))),
+              ],
+            )
+          else ...[
+            const LogoMarbel(tamano: 150, brillo: true),
+            const SizedBox(height: 18),
+            texto,
           ],
-        ),
+          SizedBox(height: ancho ? 48 : 28),
+          _CuentaAtras(t),
+        ],
       ),
     );
   }
@@ -261,9 +304,9 @@ class _Dato extends StatelessWidget {
   }
 }
 
-/// Cuenta atrás que cambia según la fase del torneo.
 class _CuentaAtras extends StatefulWidget {
-  const _CuentaAtras();
+  const _CuentaAtras(this.t);
+  final Torneo t;
 
   @override
   State<_CuentaAtras> createState() => _CuentaAtrasState();
@@ -288,11 +331,13 @@ class _CuentaAtrasState extends State<_CuentaAtras> {
 
   @override
   Widget build(BuildContext context) {
-    final f = _faseActual();
+    final t = widget.t;
+    final f = faseDe(t);
+    final js = datos.jornadasDe(t);
     final ancho = esAncho(context);
-    const nombres = ['Sábado 26 dic', 'Domingo 27 dic', 'Sábado 2 ene', 'Domingo 3 ene'];
+    String nombreDia(int i) => i >= 0 && i < js.length ? diaLargo(js[i]) : '';
 
-    if (f.fase == _Fase.finalizado) {
+    if (f.fase == FaseTorneo.finalizado) {
       return Tarjeta(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -303,7 +348,7 @@ class _CuentaAtrasState extends State<_CuentaAtras> {
                 textAlign: TextAlign.center, style: TextStyle(color: MarbelColors.texto2, fontSize: 16)),
             const SizedBox(height: 16),
             Wrap(spacing: 12, runSpacing: 10, alignment: WrapAlignment.center, children: [
-              BotonCian('Resultados finales', onTap: () => context.go('/calendario')),
+              BotonCian('Resultados finales', onTap: () => context.go(rutaTorneo('calendario', t.id))),
               BotonContorno('Galería', onTap: () => context.go('/galeria')),
             ]),
           ],
@@ -311,7 +356,7 @@ class _CuentaAtrasState extends State<_CuentaAtras> {
       );
     }
 
-    if (f.fase == _Fase.jugando) {
+    if (f.fase == FaseTorneo.jugando) {
       return Tarjeta(
         borde: MarbelColors.enJuego,
         padding: const EdgeInsets.all(24),
@@ -323,8 +368,12 @@ class _CuentaAtrasState extends State<_CuentaAtras> {
               Flexible(child: Text('¡SE ESTÁ JUGANDO AHORA!', style: MarbelText.titular(ancho ? 48 : 30))),
             ]),
             const SizedBox(height: 8),
-            Text('Jornada ${f.jornada + 1} de 4 · ${nombres[f.jornada]} · sigue los resultados aquí abajo',
-                textAlign: TextAlign.center, style: const TextStyle(color: MarbelColors.texto2, fontSize: 16)),
+            Text(
+                f.total > 1
+                    ? 'Jornada ${f.jornada + 1} de ${f.total} · ${nombreDia(f.jornada)} · sigue los resultados aquí abajo'
+                    : 'Sigue los resultados aquí abajo',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: MarbelColors.texto2, fontSize: 16)),
           ],
         ),
       );
@@ -345,13 +394,12 @@ class _CuentaAtrasState extends State<_CuentaAtras> {
 
     return Column(
       children: [
-        Text(f.fase == _Fase.antes ? 'EMPIEZA EN' : 'PRÓXIMA JORNADA EN',
-            style: MarbelText.etiqueta(size: 16)),
+        Text(f.fase == FaseTorneo.antes ? 'EMPIEZA EN' : 'PRÓXIMA JORNADA EN', style: MarbelText.etiqueta(size: 16)),
         const SizedBox(height: 4),
         Text(
-          f.fase == _Fase.antes
-              ? 'Sábado 26 de diciembre · 9:00'
-              : '${nombres[f.jornada]} · 9:00 · ya se jugaron las ${f.jornada} primeras jornadas',
+          f.fase == FaseTorneo.antes
+              ? '${nombreDia(0)} · ${hhmm(f.objetivo)}'
+              : '${nombreDia(f.jornada)} · ${hhmm(f.objetivo)} · ya se jugaron ${f.jornada} de ${f.total} jornadas',
           textAlign: TextAlign.center,
           style: const TextStyle(color: MarbelColors.texto2, fontWeight: FontWeight.w600),
         ),
@@ -378,12 +426,10 @@ class _CuentaAtrasState extends State<_CuentaAtras> {
                             Expanded(
                               child: FittedBox(
                                 child: Text(unidades[i].$1,
-                                    style: MarbelText.titular(120,
-                                        color: i == 0 ? MarbelColors.cian : MarbelColors.blanco)),
+                                    style: MarbelText.titular(120, color: i == 0 ? MarbelColors.cian : MarbelColors.blanco)),
                               ),
                             ),
-                            Text(unidades[i].$2,
-                                style: MarbelText.etiqueta(color: MarbelColors.apagado, size: ancho ? 15 : 11)),
+                            Text(unidades[i].$2, style: MarbelText.etiqueta(color: MarbelColors.apagado, size: ancho ? 15 : 11)),
                           ],
                         ),
                       );
@@ -400,10 +446,11 @@ class _CuentaAtrasState extends State<_CuentaAtras> {
 }
 
 // ---------------------------------------------------------------------------
-// Avisos
+// Avisos del torneo (los 3 últimos)
 // ---------------------------------------------------------------------------
 class _Avisos extends StatelessWidget {
-  const _Avisos();
+  const _Avisos(this.t);
+  final Torneo t;
 
   @override
   Widget build(BuildContext context) {
@@ -414,7 +461,7 @@ class _Avisos extends StatelessWidget {
         TituloSeccion(
           etiqueta: 'De la organización',
           titulo: 'Avisos',
-          derecha: TextButton(onPressed: () => context.go('/avisos'), child: const Text('Ver todos →')),
+          derecha: TextButton(onPressed: () => context.go(rutaTorneo('avisos', t.id)), child: const Text('Ver todos →')),
         ),
         const SizedBox(height: 14),
         if (lista.isEmpty)
@@ -474,23 +521,26 @@ class TarjetaAviso extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// En directo
+// En directo (o los próximos partidos) de los torneos en marcha
 // ---------------------------------------------------------------------------
 class _EnDirecto extends StatelessWidget {
-  const _EnDirecto();
+  const _EnDirecto(this.torneos);
+  final List<Torneo> torneos;
 
   @override
   Widget build(BuildContext context) {
-    var lista = datos.enDirecto;
+    final todos = datos.partidosDe(torneos);
+    var lista = todos.where((p) => p.estado == Estado.enJuego).toList();
     final hayDirecto = lista.isNotEmpty;
     if (!hayDirecto) {
       // Si no hay nada jugándose, los próximos partidos.
       final ahora = DateTime.now();
-      lista = datos.partidos
+      lista = todos
           .where((p) => p.estado == Estado.programado && p.horaReal.isAfter(ahora.subtract(const Duration(minutes: 30))))
           .take(4)
           .toList();
     }
+    if (lista.isEmpty && torneos.length > 1) return const SizedBox.shrink();
     final ancho = esAncho(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,7 +548,11 @@ class _EnDirecto extends StatelessWidget {
         TituloSeccion(
           etiqueta: hayDirecto ? '● Ahora mismo' : 'Lo próximo',
           titulo: hayDirecto ? 'En directo' : 'Próximos partidos',
-          derecha: TextButton(onPressed: () => context.go('/calendario'), child: const Text('Todos los partidos →')),
+          derecha: torneos.length == 1
+              ? TextButton(
+                  onPressed: () => context.go(rutaTorneo('calendario', torneos.first.id)),
+                  child: const Text('Todos los partidos →'))
+              : null,
         ),
         const SizedBox(height: 14),
         if (lista.isEmpty)
@@ -514,90 +568,6 @@ class _EnDirecto extends StatelessWidget {
               children: [for (final p in lista) SizedBox(width: w, child: TarjetaPartido(p))],
             );
           }),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Niveles y categorías
-// ---------------------------------------------------------------------------
-class _Niveles extends StatelessWidget {
-  const _Niveles();
-
-  @override
-  Widget build(BuildContext context) {
-    final ancho = esAncho(context);
-    final tarjetas = LayoutBuilder(builder: (context, c) {
-      final cols = ancho ? 4 : 2;
-      final w = (c.maxWidth - 12 * (cols - 1)) / cols;
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (final (n, desc) in Contenido.niveles)
-            Container(
-              width: w,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(color: n.color, borderRadius: BorderRadius.circular(20)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(n.nombre.toUpperCase(), style: MarbelText.titular(ancho ? 34 : 26, color: n.texto)),
-                  const SizedBox(height: 6),
-                  Text(desc, style: TextStyle(color: n.texto, fontWeight: FontWeight.w700)),
-                ],
-              ),
-            ),
-        ],
-      );
-    });
-
-    Widget lista(String titulo, List<String> items, {String prefijo = ''}) => Tarjeta(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(titulo.toUpperCase(), style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
-              const SizedBox(height: 8),
-              for (final i in items)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Text('$prefijo$i', style: const TextStyle(color: MarbelColors.texto2, fontSize: 15)),
-                ),
-            ],
-          ),
-        );
-
-    final listas = [
-      lista('Masculino', Contenido.categoriasMasculino),
-      lista('Femenino', Contenido.categoriasFemenino),
-      lista('¿Quién puede participar?', Contenido.quienParticipa, prefijo: '→ '),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const TituloSeccion(
-          etiqueta: '3 niveles + femenino',
-          titulo: 'Tú eliges el nivel',
-          subtitulo: 'En masculino, tres niveles en cada categoría y año; en femenino, nivel único. '
-              'Mínimo cuatro partidos asegurados para cada equipo.',
-        ),
-        const SizedBox(height: 18),
-        tarjetas,
-        const SizedBox(height: 14),
-        if (ancho)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < listas.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
-                Expanded(child: listas[i]),
-              ],
-            ],
-          )
-        else
-          Column(children: [for (final l in listas) Padding(padding: const EdgeInsets.only(bottom: 12), child: SizedBox(width: double.infinity, child: l))]),
       ],
     );
   }

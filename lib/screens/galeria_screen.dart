@@ -56,7 +56,7 @@ class GaleriaScreen extends StatelessWidget {
       ];
       if (!ancho) {
         return ListView(padding: const EdgeInsets.only(bottom: 32), children: [
-          const CabeceraMovil('Galería', atras: true),
+          const CabeceraMovil('Galería'),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: contenido)),
         ]);
       }

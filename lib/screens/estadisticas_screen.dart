@@ -49,15 +49,6 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
                 ..sort((a, b) => (b.golesLocal! - b.golesVisitante!).abs().compareTo((a.golesLocal! - a.golesVisitante!).abs())))
               .first;
 
-      // Goleadores (jugadores): "Nombre I." + equipo
-      final idsPs = ps.map((p) => p.id).toSet();
-      final porJugador = <String, int>{};
-      for (final g in datos.goles.where((g) => idsPs.contains(g.partidoId))) {
-        final k = '${g.jugador}|${g.equipoId}';
-        porJugador[k] = (porJugador[k] ?? 0) + 1;
-      }
-      final pichichis = (porJugador.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).take(5).toList();
-
       // Rachas
       final equiposConPartidos = {...gf.keys};
       final rachas = equiposConPartidos.map((e) => (e, datos.rachaDe(e))).toList()
@@ -70,7 +61,7 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
 
       final premios = <(String, String, String?, String, Color)>[
         if (masGoleadores.isNotEmpty)
-          ('⚽', 'Más goleador', masGoleadores.first.key, '${masGoleadores.first.value} goles', MarbelColors.medio),
+          ('⚽', 'Equipo más goleador', masGoleadores.first.key, '${masGoleadores.first.value} goles', MarbelColors.medio),
         if (cero.isNotEmpty)
           ('🧤', 'Porterías a cero', top(cero).first.key, '${top(cero).first.value} partidos sin encajar', MarbelColors.elite),
         if (rachas.isNotEmpty && rachas.first.$2.racha > 0)
@@ -175,34 +166,6 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
             ),
             Tarjeta(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('👟 MÁXIMOS GOLEADORES', style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
-                const SizedBox(height: 12),
-                if (pichichis.isEmpty)
-                  const Text('Aún no hay goles con autor. La mesa de cada sede los apunta al meter el resultado.',
-                      style: TextStyle(color: MarbelColors.apagado))
-                else
-                  for (final (i, e) in pichichis.indexed)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(color: MarbelColors.fondo, borderRadius: BorderRadius.circular(12)),
-                      child: Row(children: [
-                        SizedBox(width: 30, child: Text(['🥇', '🥈', '🥉', '4', '5'][i], textAlign: TextAlign.center, style: const TextStyle(fontSize: 20))),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(e.key.split('|').first, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                            Text(datos.nombreEquipo(e.key.split('|').last), style: const TextStyle(color: MarbelColors.apagado, fontSize: 13)),
-                          ]),
-                        ),
-                        Text('${e.value}', style: MarbelText.titular(26, color: MarbelColors.cian).copyWith(fontStyle: FontStyle.normal)),
-                        const Text(' goles', style: TextStyle(color: MarbelColors.apagado, fontSize: 13)),
-                      ]),
-                    ),
-              ]),
-            ),
-            Tarjeta(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('🔥 EN RACHA', style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
                 const SizedBox(height: 12),
                 for (final (e, r) in rachas.take(5))
@@ -232,7 +195,7 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
           ]),
         ],
         const SizedBox(height: 12),
-        const Text('Se calculan solas a partir de los resultados que mete el personal. De cada jugador o jugadora solo mostramos su nombre, la inicial del apellido y su equipo.',
+        const Text('Se calculan solas a partir de los resultados que mete el personal. Solo salen equipos: no publicamos nombres de jugadores ni jugadoras.',
             style: TextStyle(color: MarbelColors.apagado, fontSize: 13)),
       ];
 
@@ -250,9 +213,9 @@ class _EstadisticasScreenState extends State<EstadisticasScreen> {
       }
       return PaginaPublica(children: [
         const SizedBox(height: 48),
-        const AnchoMax(
+        AnchoMax(
           child: TituloSeccion(
-            etiqueta: 'IV Torneo Navideño · se actualiza con cada resultado',
+            etiqueta: '${datos.torneo?.nombre ?? 'Torneo'} · se actualiza con cada resultado',
             titulo: 'Estadísticas',
             tamano: 80,
           ),

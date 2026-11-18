@@ -13,7 +13,7 @@ class SeccionCalendario extends StatelessWidget {
 
   Future<({String sede, DateTime inicio, int minutos, int campos})?> _pedirDatos(
       BuildContext context, String titulo, {bool conCampos = true}) async {
-    String? sede = datos.sedes.firstOrNull?.id;
+    String? sede = datos.sedesTorneo.firstOrNull?.id;
     var inicio = datos.torneo?.inicio.toLocal() ?? DateTime.now();
     final minutos = TextEditingController(text: '30');
     final campos = TextEditingController(text: '2');
@@ -29,7 +29,7 @@ class SeccionCalendario extends StatelessWidget {
               Desplegable<String>(
                 etiqueta: 'Sede',
                 valor: sede,
-                opciones: [for (final s in datos.sedes) (s.id, s.nombre)],
+                opciones: [for (final s in datos.sedesTorneo) (s.id, s.nombre)],
                 onCambio: (v) => set(() => sede = v),
               ),
               const SizedBox(height: 12),
@@ -99,8 +99,8 @@ class SeccionCalendario extends StatelessWidget {
       if (ligas.isEmpty) const EstadoVacio('Aún no hay ligas. Se crean al inscribir equipos en «Equipos e inscripciones».'),
       for (final l in ligas) _FilaLiga(l, pedirDatos: _pedirDatos),
       const SizedBox(height: 20),
-      const SubTitulo('Sedes'),
-      for (final s in datos.sedes) ...[
+      const SubTitulo('Sedes de este torneo'),
+      for (final s in datos.sedesTorneo) ...[
         Tarjeta(
           padding: const EdgeInsets.all(14),
           child: Row(children: [
@@ -118,7 +118,7 @@ class SeccionCalendario extends StatelessWidget {
         ),
         const SizedBox(height: 8),
       ],
-      const Text('Los datos de las sedes (servicios, ubicación, fotos) se cambian en Supabase → Table Editor → sedes.',
+      const Text('Las sedes de cada torneo son las de su proyecto («sedes» en el archivo). Para cambiarlas, «Actualizar proyecto» en Torneos. Sus datos (servicios, ubicación, fotos) se cambian en Supabase → Table Editor → sedes.',
           style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
     ]);
   }

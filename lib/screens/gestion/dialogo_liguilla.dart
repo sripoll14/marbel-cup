@@ -48,17 +48,23 @@ String _normalizar(String s) {
 List<_Franja> _segunHorario(Liga liga) {
   final cat = datos.categoria(liga.categoriaId);
   if (cat == null) return [];
+  // El cuadro «qué se juega cada día en cada sede» del proyecto del torneo
+  // (columnas: las sedes del torneo, en orden)
+  final t = datos.torneos.where((x) => x.id == liga.torneoId).firstOrNull;
+  final horario = t?.proyecto?.horario ?? const <DiaHorario>[];
+  if (t == null || horario.isEmpty) return [];
+  final sedesN = datos.sedesDe(t);
   final nombre = _normalizar(cat.nombre);
   final porClave = <String, _Franja>{};
-  for (final d in Contenido.horario) {
-    for (var i = 0; i < d.sedes.length && i < datos.sedes.length; i++) {
+  for (final d in horario) {
+    for (var i = 0; i < d.sedes.length && i < sedesN.length; i++) {
       for (final b in d.sedes[i]) {
         if (_normalizar(b.categoria) != nombre) continue;
         if (!b.niveles.any((n) => n.id == liga.nivelId)) continue;
         final (desde, hasta) = _horas(b.franja);
         final clave = '${d.dia}-${b.franja.name}';
         final f = porClave.putIfAbsent(clave, () => _Franja(d.dia, desde, hasta, []));
-        f.sedes.add(_SedeFranja(datos.sedes[i].id));
+        f.sedes.add(_SedeFranja(sedesN[i].id));
       }
     }
   }
@@ -95,7 +101,7 @@ class _DialogoLiguillaState extends State<_DialogoLiguilla> {
       final inicio = datos.torneo?.inicio.toLocal() ?? DateTime.now();
       _franjas = [
         _Franja(DateTime(inicio.year, inicio.month, inicio.day), const TimeOfDay(hour: 9, minute: 0),
-            const TimeOfDay(hour: 14, minute: 0), [if (datos.sedes.isNotEmpty) _SedeFranja(datos.sedes.first.id)]),
+            const TimeOfDay(hour: 14, minute: 0), [if (datos.sedesTorneo.isNotEmpty) _SedeFranja(datos.sedesTorneo.first.id)]),
       ];
     }
   }
@@ -173,7 +179,7 @@ class _DialogoLiguillaState extends State<_DialogoLiguilla> {
         ]),
         const SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, children: [
-          for (final s in datos.sedes)
+          for (final s in datos.sedesTorneo)
             FilterChip(
               label: Text(s.corto),
               selected: f.sedes.any((x) => x.sedeId == s.id),

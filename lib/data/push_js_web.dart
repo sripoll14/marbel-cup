@@ -21,3 +21,9 @@ Future<String> activar(String clave) async => (await _push!.activar(clave).toDar
 Future<String> actual() async => _push == null ? '' : (await _push!.actual().toDart).toDart;
 void mostrarInstalar() => _push?.mostrarInstalar();
 Future<String> desactivar() async => _push == null ? '' : (await _push!.desactivar().toDart).toDart;
+
+@JS('marbelDescargar')
+external void _descargar(String nombre, String texto);
+
+/// Descarga un archivo de texto (web/push.js).
+void descargar(String nombre, String texto) => _descargar(nombre, texto);

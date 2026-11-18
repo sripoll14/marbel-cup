@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/contenido.dart';
 import '../data/sesion.dart';
 import '../theme/app_theme.dart';
 import 'comunes.dart';
 import 'conexion.dart';
+import 'cuenta.dart';
 
 class _Seccion {
   const _Seccion(this.ruta, this.nombre, this.icono);
@@ -17,20 +17,15 @@ class _Seccion {
 /// Menú de la web (ordenador).
 const _web = [
   _Seccion('/', 'Inicio', Icons.home_rounded),
-  _Seccion('/torneo', 'El torneo', Icons.info_rounded),
-  _Seccion('/calendario', 'Calendario', Icons.calendar_month_rounded),
-  _Seccion('/equipos', 'Equipos', Icons.shield_rounded),
-  _Seccion('/estadisticas', 'Estadísticas', Icons.bar_chart_rounded),
-  _Seccion('/porra', 'La Porra', Icons.emoji_events_rounded),
+  _Seccion('/torneos', 'Torneos', Icons.emoji_events_rounded),
   _Seccion('/galeria', 'Galería', Icons.photo_library_rounded),
 ];
 
 /// Pestañas de la app (móvil).
 const _app = [
   _Seccion('/', 'Inicio', Icons.home_rounded),
-  _Seccion('/calendario', 'Partidos', Icons.calendar_month_rounded),
-  _Seccion('/porra', 'Porra', Icons.emoji_events_rounded),
-  _Seccion('/equipos', 'Equipos', Icons.shield_rounded),
+  _Seccion('/torneos', 'Torneos', Icons.emoji_events_rounded),
+  _Seccion('/galeria', 'Galería', Icons.photo_library_rounded),
   _Seccion('/mas', 'Más', Icons.more_horiz_rounded),
 ];
 
@@ -59,7 +54,7 @@ class MarcoApp extends StatelessWidget {
       );
     }
     // En móvil, lo que no es una pestaña cuelga de "Más".
-    final i = _indice(_app, ubicacion, siNo: 4);
+    final i = _indice(_app, ubicacion, siNo: 3);
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -135,7 +130,7 @@ class _BarraSuperior extends StatelessWidget {
                 final p = sesion.perfil;
                 if (p == null) {
                   return TextButton(
-                    onPressed: () => context.go('/porra'),
+                    onPressed: () => pedirCuenta(context),
                     style: TextButton.styleFrom(foregroundColor: MarbelColors.texto2),
                     child: const Text('Entrar', style: TextStyle(fontWeight: FontWeight.w700)),
                   );
@@ -151,8 +146,8 @@ class _BarraSuperior extends StatelessWidget {
                     }
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(value: '/porra', child: Text('Mi porra')),
                     if (p.esPersonal) const PopupMenuItem(value: '/gestion', child: Text('Panel de gestión')),
+                    const PopupMenuItem(value: '/mas', child: Text('Mi cuenta y alias')),
                     const PopupMenuItem(value: 'salir', child: Text('Cerrar sesión')),
                   ],
                   child: Row(
@@ -172,11 +167,7 @@ class _BarraSuperior extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(width: 16),
-            FilledButton(
-              onPressed: () => abrir(Contenido.whatsappUrl1),
-              child: const Text('INSCRIBE TU EQUIPO'),
-            ),
+
           ],
         ),
       ),
@@ -222,6 +213,8 @@ class CabeceraMovil extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Dentro de la página de un torneo ya hay su cabecera con las pestañas.
+    if (DentroDeTorneo.de(context)) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
@@ -247,4 +240,14 @@ class CabeceraMovil extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Marca la página de un torneo (sus apartados no ponen su propia cabecera móvil).
+class DentroDeTorneo extends InheritedWidget {
+  const DentroDeTorneo({super.key, required super.child});
+
+  static bool de(BuildContext context) => context.dependOnInheritedWidgetOfExactType<DentroDeTorneo>() != null;
+
+  @override
+  bool updateShouldNotify(DentroDeTorneo oldWidget) => false;
 }

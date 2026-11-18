@@ -144,7 +144,12 @@ class _SeccionPersonalState extends State<SeccionPersonal> {
                     child: Desplegable<String>(
                       etiqueta: 'Sede',
                       valor: p.sedeId,
-                      opciones: [for (final s in datos.sedes) (s.id, s.nombre)],
+                      // Sedes de los torneos en curso (y la que ya tenga, aunque sea de otro)
+                      opciones: [
+                        for (final s in datos.sedesEnCurso) (s.id, s.nombre),
+                        if (p.sedeId != null && !datos.sedesEnCurso.any((s) => s.id == p.sedeId))
+                          (p.sedeId!, datos.sede(p.sedeId)?.nombre ?? 'Otra sede'),
+                      ],
                       onCambio: (v) => _cambiar(p, {'sede_id': v}),
                     ),
                   ),

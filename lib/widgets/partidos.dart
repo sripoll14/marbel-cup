@@ -462,9 +462,9 @@ Future<void> abrirPartido(BuildContext context, String partidoId) {
       builder: (c, scroll) => ListenableBuilder(
         listenable: datos,
         builder: (c, _) {
-          final p = datos.partidos.where((x) => x.id == partidoId).firstOrNull;
+          final p = datos.todosPartidos.where((x) => x.id == partidoId).firstOrNull;
           if (p == null) return const Center(child: Text('Este partido ya no existe.'));
-          final goles = datos.goles.where((g) => g.partidoId == p.id).toList()
+          final goles = datos.todosGoles.where((g) => g.partidoId == p.id).toList()
             ..sort((a, b) => (a.minuto ?? 999).compareTo(b.minuto ?? 999));
           return ListView(controller: scroll, padding: const EdgeInsets.fromLTRB(16, 10, 16, 32), children: [
             Center(
@@ -484,7 +484,7 @@ Future<void> abrirPartido(BuildContext context, String partidoId) {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Text(
-                    '⚽ ${g.jugador}${g.minuto == null ? '' : " ${g.minuto}'"} · ${datos.nombreEquipo(g.equipoId)}',
+                    '⚽ ${datos.nombreEquipo(g.equipoId)}${g.minuto == null ? '' : " · minuto ${g.minuto}"}',
                     style: const TextStyle(color: MarbelColors.texto2),
                   ),
                 ),

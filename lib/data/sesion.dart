@@ -51,17 +51,20 @@ class Sesion extends ChangeNotifier {
   }
 
   Future<void> _cargarPerfil() async {
+    final era = esPersonal;
     final u = usuario;
     if (u == null) {
       perfil = null;
-      return;
+    } else {
+      try {
+        final m = await db.from('perfiles').select().eq('id', u.id).maybeSingle();
+        perfil = m == null ? null : Perfil.fromMap(m);
+      } catch (_) {
+        perfil = null;
+      }
     }
-    try {
-      final m = await db.from('perfiles').select().eq('id', u.id).maybeSingle();
-      perfil = m == null ? null : Perfil.fromMap(m);
-    } catch (_) {
-      perfil = null;
-    }
+    // El personal puede ver torneos ocultos (para prepararlos): al entrar o salir, se repasa.
+    if (era != esPersonal) datos.repasarTorneo();
   }
 
   Future<void> recargarPerfil() async {
@@ -118,6 +121,7 @@ class Sesion extends ChangeNotifier {
     await db.auth.signOut();
     perfil = null;
     usuario = null;
+    datos.repasarTorneo();
     notifyListeners();
   }
 

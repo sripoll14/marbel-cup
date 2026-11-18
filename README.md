@@ -32,6 +32,6 @@ Hay un ejemplo en `env.example.json`.
 
 ## Privacidad
 
-No se publican plantillas ni datos personales de jugadores. En estadísticas solo
-aparece "Nombre I." junto al equipo. Las reglas de acceso están en
+No se publican plantillas ni datos personales de jugadores, tampoco sus nombres:
+en resultados, estadísticas y notificaciones solo salen los equipos. Las reglas de acceso están en
 `supabase/01_esquema.sql` (RLS).

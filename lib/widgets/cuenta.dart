@@ -602,3 +602,27 @@ class AvisoAlias extends StatelessWidget {
     );
   }
 }
+
+
+/// Ventana para entrar o crear la cuenta (la misma para La Porra y las opiniones).
+Future<void> pedirCuenta(BuildContext context) async {
+  var registro = false;
+  await showDialog<void>(
+    context: context,
+    builder: (c) => StatefulBuilder(
+      builder: (c, set) => AlertDialog(
+        backgroundColor: MarbelColors.tarjeta,
+        title: Text(registro ? 'Crear cuenta' : 'Entrar'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: registro
+                ? FormularioRegistro(alEntrar: () => Navigator.pop(c), alTenerCuenta: () => set(() => registro = false))
+                : FormularioEntrar(alEntrar: () => Navigator.pop(c), alCrearCuenta: () => set(() => registro = true)),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cerrar'))],
+      ),
+    ),
+  );
+}

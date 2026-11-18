@@ -112,3 +112,15 @@ También funciona en Chrome del ordenador, incluso probando en `localhost:5000`.
 - **Android:** en Ajustes → Aplicaciones → Chrome (o Marbel Cup) → Notificaciones, comprueba que están permitidas.
 
 Si cambias de móvil o borras los datos del navegador, hay que volver a pulsar «Activar notificaciones». Los móviles que desinstalan la app se borran solos de la lista.
+
+---
+
+## Cuando se cambia la función (por ejemplo, en una actualización)
+
+1. Supabase → **Edge Functions** → **notificar** → pestaña **Code**.
+2. Abre `supabase/functions/notificar/index.ts` con el Bloc de notas, copia **todo** y pégalo encima de lo que hay (borra lo anterior).
+3. **Deploy**.
+4. Comprueba en sus ajustes que **«Verify JWT»** sigue **desactivado**.
+
+Desde la actualización 1, cada notificación abre el torneo al que pertenece (su calendario o sus avisos), aunque haya varios torneos a la vez.
+

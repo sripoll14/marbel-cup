@@ -18,7 +18,7 @@ class SelectorLiga extends StatelessWidget {
   Widget build(BuildContext context) {
     final ligas = datos.ligasActuales;
     if (ligas.isEmpty) return const SizedBox.shrink();
-    final actual = datos.liga(ligaId ?? '') ?? ligas.first;
+    final actual = ligas.where((l) => l.id == ligaId).firstOrNull ?? ligas.first;
     final cats = <Categoria>[];
     for (final l in ligas) {
       final c = datos.categoria(l.categoriaId);
@@ -120,7 +120,7 @@ class _CompeticionState extends State<Competicion> {
               icono: Icons.emoji_events_outlined);
         }
         _liga ??= ligaInicial();
-        final ligaId = datos.liga(_liga ?? '') == null ? ligas.first.id : _liga!;
+        final ligaId = datos.ligaDelTorneo(_liga) ?? ligas.first.id;
         final nivel = datos.nivelDeLiga(ligaId);
         final ancho = esAncho(context);
         final partidos = datos.partidosDeLiga(ligaId).where((p) => p.fase == Fase.liga).toList();

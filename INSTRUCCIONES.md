@@ -27,10 +27,11 @@ Tu `env.json` y la carpeta oculta `.git` no se tocan, porque no van en el zip. P
 9. Y con `supabase/11_fase_final_conjunta.sql` (botón para hacer una sola fase final entre los grupos de una categoría, si se decide a última hora).
 10. Y con `supabase/12_fase_final_a_mano.sql` (fase final con los equipos elegidos a mano).
 11. Y con `supabase/13_desempates_a_mano.sql` (empates a puntos y equipos de la fase final, a mano según el reglamento).
+12. Y con `supabase/14_varios_torneos.sql` (varios torneos a la vez, cada uno con su proyecto · actualización 1).
 
 Esto añade:
 
-- Clasificaciones y goleadores.
+- Clasificaciones y equipos más goleadores.
 - La generación automática del calendario, de las semifinales, del partido por el 3er y 4º puesto y de la final.
 - El ranking de La Porra.
 - La galería y los escudos.
@@ -84,7 +85,7 @@ Hazlo en este orden:
 1. **Torneos**: comprueba que el IV Torneo Navideño está como *Actual* y *Publicado*.
 2. **Equipos e inscripciones**: en cada equipo, **Inscribir en una liga** (categoría y nivel). Si falta algún equipo, **Nuevo equipo**. Los escudos ya vienen puestos y se pueden cambiar con **Subir escudo**.
 3. **Calendario y sedes**: en cada liga, **Generar liguilla**. Salen ya los días y las sedes del cuadro del torneo; revisa las horas, los campos de cada sede y los minutos por partido. Cuando acabe la liguilla, **Generar fase final**: crea las semifinales (1º–4º y 2º–3º), el partido por el 3er y 4º puesto y la final. Estos dos últimos se rellenan solos con los resultados.
-4. **Partidos y resultados**: durante el torneo, el marcador se lleva con + y −, el estado con *Próximo / En juego / Final*, y también se cambian el campo y el retraso. Los goles con nombre se apuntan como "Hugo S." y el equipo.
+4. **Partidos y resultados**: durante el torneo, el marcador se lleva con + y −, el estado con *Próximo / En juego / Final*, y también se cambian el campo y el retraso. Con **Gol con minuto** se apunta un gol con su equipo y el minuto (nunca el nombre del jugador).
 
 ## 7. Subirlo a GitHub (y se publica solo)
 
@@ -121,7 +122,7 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 - [ ] Inicio: cuenta atrás, avisos, carrusel de fotos y mapa de sedes.
 - [ ] Partidos: filtros por día y sede; un partido "En juego" aparece en Inicio al momento.
 - [ ] Equipos: seguir un equipo (☆), y su ficha con partidos y racha.
-- [ ] Estadísticas: goleadores como "Nombre I. · Equipo".
+- [ ] Estadísticas: solo equipos (ningún nombre de jugador).
 - [ ] La Porra: crear cuenta (con alias), predecir, ver el ranking (solo salen alias). **Autorrelleno de contraseñas:** al crear cuenta, el móvil debe ofrecer una contraseña segura y guardarla; al entrar, debe rellenarla sola; al cambiarla en "¿Has olvidado tu contraseña?", debe actualizar la guardada.
 - [ ] "Mantener sesión iniciada": si lo desmarcas, al cerrar y volver a abrir te pide entrar otra vez.
 - [ ] Recuperar contraseña: llega el email y el enlace abre "Elige una contraseña nueva".
@@ -153,3 +154,13 @@ Cada aviso de instalación sale una sola vez. Para volver a verlo, borra los dat
 - **Fase final a mano:** en cualquier partido de semifinal, 3er puesto o final, administración tiene **Cambiar equipos** en **Partidos y resultados** (por si un equipo abandona o hay cualquier cambio). Y en **Calendario y sedes** está **Fase final a mano**, que crea los cuatro partidos sin equipos para elegirlos uno a uno. La final y el 3er puesto se siguen rellenando solos al acabar las semifinales, y también se pueden cambiar a mano después.
 - **Clasificación y desempates (reglamento 2026):** la app calcula la tabla (PJ, G, E, P, GF, GC, DG y puntos) y la ordena por puntos. Si hay empate a puntos, en la web sale un * y el orden lo pone administración en **Calendario y sedes → Ordenar empates** (enfrentamiento directo, goles, penaltis o sorteo). La app ya no genera sola la fase final: se crea con **Fase final a mano** (o **Fase final conjunta a mano** si hay grupos) y los equipos se eligen en **Partidos y resultados → Cambiar equipos**.
 - **Todo a mano (por si hay algún imprevisto):** en **Partidos y resultados**, administración tiene **Nuevo partido** (liga, fase, jornada, equipos, día, hora, sede y campo), y en cada partido **Cambiar equipos** (también en la liguilla), **Hora y sede** y **Borrar partido**. Así la liguilla se puede generar y retocar, o montar entera a mano. La mesa de sede sigue pudiendo cambiar solo resultado, estado, campo y retraso.
+
+## Varios torneos a la vez (actualización 1)
+
+- **Menú:** Inicio · Torneos · Galería (en el móvil, además, Más).
+- **Inicio:** si hay un torneo en marcha, su portada (cuenta atrás, avisos, partidos). Si hay varios, la portada de Marbel con un banner por torneo. Si no hay ninguno, la portada de Marbel con el aviso «Ahora mismo no hay ningún torneo en marcha».
+- **Torneos:** un banner por cada torneo en marcha. Cada torneo tiene su página (`#/torneos/<id>`) con sus pestañas: Información · Calendario · Equipos · Estadísticas · La Porra · Avisos. «Déjanos tu opinión» va al final de la Información, y el botón «Inscribe tu equipo» en la cabecera del torneo.
+- **En marcha = En curso + Publicado** (Panel → Torneos). Al ocultar un torneo desaparece de Inicio y de Torneos; si no queda ninguno, sale el aviso.
+- **Cada torneo es un proyecto:** un archivo `.json` con todo su contenido (ver `PROYECTOS.md`; en `proyectos/` está el del IV Torneo Navideño). En Panel → Torneos: **Nuevo torneo (subir proyecto)** (se crea oculto), **Actualizar proyecto**, **Descargar proyecto**.
+- **Selector «Torneo»** debajo de la cabecera del panel: equipos, calendario, avisos y opiniones son del torneo elegido. «Partidos y resultados» enseña los de todos los torneos en curso. «Ver cómo queda ↗» abre la página de un torneo aunque esté oculto (solo el personal).
+- Las direcciones de antes (`#/calendario`, `#/porra`, `#/avisos`…): si hay un solo torneo en marcha, van a ese apartado; si hay varios o ninguno, a la lista de Torneos.

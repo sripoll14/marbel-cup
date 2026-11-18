@@ -105,6 +105,9 @@ class _SeccionOpinionesState extends State<SeccionOpiniones> {
         Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
           Text(nombre, style: const TextStyle(fontWeight: FontWeight.w800)),
           Text('· ${diaCorto(c.creado)} ${hhmm(c.creado)}', style: const TextStyle(color: MarbelColors.apagado, fontSize: 12)),
+          if (datos.torneos.length > 1 && f['torneo_id'] != null)
+            Pastilla(datos.torneos.where((t) => t.id == f['torneo_id']).firstOrNull?.nombre ?? 'Torneo',
+                fondo: const Color(0xFF1E2672), color: MarbelColors.cian, tamano: 11),
           if (c.estado == 'borrado')
             const Pastilla('Borrada por su autor', fondo: Color(0xFF2A2F55), color: MarbelColors.apagado, tamano: 11),
           if (c.partidoId != null || c.respuestaA != null)

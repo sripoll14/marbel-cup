@@ -29,13 +29,20 @@ class _SeccionPartidosState extends State<SeccionPartidos> {
       return const EstadoVacio('Tu cuenta de mesa no tiene sede asignada. Pide a administración que te la asigne.');
     }
     final sedeId = sedeFija ?? _sede;
-    final dias = datos.diasTorneo;
+    // Partidos de todos los torneos en curso (y del que se está preparando),
+    // para que la mesa vea los suyos sin tener que elegir torneo.
+    final enCurso = {for (final t in datos.torneos) if (t.activo || t.id == datos.torneo?.id) t.id};
+    final ligasEnCurso = {for (final l in datos.ligas) if (enCurso.contains(l.torneoId)) l.id};
+    final base = datos.todosPartidos.where((p) => ligasEnCurso.contains(p.ligaId)).toList();
+    final variosTorneos = {for (final p in base) datos.liga(p.ligaId)?.torneoId}.length > 1;
+    final diasBase = base.map((p) => soloDia(p.hora)).toSet().toList()..sort();
+    final dias = diasBase.isNotEmpty ? diasBase : datos.diasTorneo;
     if (_dia == -1) {
       final hoy = dias.indexOf(soloDia(DateTime.now()));
       _dia = hoy >= 0 ? hoy : 0;
     }
     final dia = dias.isEmpty ? null : dias[_dia.clamp(0, dias.length - 1)];
-    final lista = datos.partidos
+    final lista = base
         .where((p) => (sedeId == null || p.sedeId == sedeId) && (dia == null || soloDia(p.hora) == dia))
         .toList();
     final retrasados = lista.where((p) => p.retrasado).toList();
@@ -54,7 +61,7 @@ class _SeccionPartidosState extends State<SeccionPartidos> {
       if (!mesa)
         FilaChips(children: [
           ChipFiltro(texto: 'Todas las sedes', elegido: _sede == null, onTap: () => setState(() => _sede = null)),
-          for (final s in datos.sedes) ChipFiltro(texto: s.corto, elegido: _sede == s.id, onTap: () => setState(() => _sede = s.id)),
+          for (final s in datos.sedesEnCurso) ChipFiltro(texto: s.corto, elegido: _sede == s.id, onTap: () => setState(() => _sede = s.id)),
         ]),
       const SizedBox(height: 10),
       FilaChips(children: [
@@ -66,7 +73,7 @@ class _SeccionPartidosState extends State<SeccionPartidos> {
       if (lista.isEmpty)
         const EstadoVacio('No hay partidos este día en esta sede. El calendario se genera en «Calendario y sedes».')
       else
-        for (final p in lista) ...[_EditorPartido(p, admin: !mesa), const SizedBox(height: 12)],
+        for (final p in lista) ...[_EditorPartido(p, admin: !mesa, conTorneo: variosTorneos), const SizedBox(height: 12)],
     ]);
   }
 }
@@ -104,7 +111,7 @@ class _AvisoRetraso extends StatelessWidget {
                   'ambito': 'sede',
                   'ambito_ref': sede,
                   'automatico': true,
-                  'torneo_id': datos.torneo?.id,
+                  'torneo_id': datos.liga(p.ligaId)?.torneoId ?? datos.torneo?.id,
                 });
                 await cola.partido(p.id, {'retraso_min': p.minutosDeRetraso, 'aviso_retraso': true});
               }, ok: 'Aviso publicado')),
@@ -115,9 +122,12 @@ class _AvisoRetraso extends StatelessWidget {
 }
 
 class _EditorPartido extends StatelessWidget {
-  const _EditorPartido(this.p, {required this.admin});
+  const _EditorPartido(this.p, {required this.admin, this.conTorneo = false});
   final Partido p;
   final bool admin;
+
+  /// Enseñar de qué torneo es (cuando hay varios en curso).
+  final bool conTorneo;
 
   /// Se ve al momento y se envía en cuanto haya conexión (sin cobertura, queda pendiente).
   Future<void> _cambiar(BuildContext context, Map<String, dynamic> cambios) => cola.partido(p.id, cambios);
@@ -127,7 +137,7 @@ class _EditorPartido extends StatelessWidget {
     final (est, fondo, color) = estadoPartido(p);
     final empate = p.tieneMarcador && p.golesLocal == p.golesVisitante;
     final penaltis = p.fase != Fase.liga && empate;
-    final golesPartido = datos.goles.where((g) => g.partidoId == p.id).toList();
+    final golesPartido = datos.todosGoles.where((g) => g.partidoId == p.id).toList();
 
     Widget marcador(String? equipoId, int? goles, String campo) {
       final e = datos.equipo(equipoId);
@@ -159,6 +169,9 @@ class _EditorPartido extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Wrap(spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
           Text(hhmm(p.horaReal), style: MarbelText.titular(24).copyWith(fontStyle: FontStyle.normal)),
+          if (conTorneo)
+            Text(datos.torneos.where((t) => t.id == datos.liga(p.ligaId)?.torneoId).firstOrNull?.nombre ?? '',
+                style: const TextStyle(color: MarbelColors.cian, fontWeight: FontWeight.w700)),
           Pastilla.nivel(datos.nivelDeLiga(p.ligaId), texto: datos.nombreLigaPartido(p)),
           Text(switch (p.fase) {
             Fase.liga => 'Liga · J${p.jornada ?? ''}',
@@ -249,11 +262,11 @@ class _EditorPartido extends StatelessWidget {
             ),
         ]),
         const SizedBox(height: 14),
-        // Goles con autor
+        // Goles apuntados uno a uno (equipo y minuto; nunca el nombre del jugador)
         Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
           for (final g in golesPartido)
             InputChip(
-              label: Text('⚽ ${g.jugador}${g.minuto == null ? '' : " ${g.minuto}'"} · ${datos.equipo(g.equipoId)?.iniciales ?? ''}'),
+              label: Text('⚽ ${datos.equipo(g.equipoId)?.iniciales ?? ''}${g.minuto == null ? '' : " ${g.minuto}'"}'),
               onDeleted: () async {
                 final campo = g.equipoId == p.localId ? 'goles_local' : 'goles_visitante';
                 final actual = g.equipoId == p.localId ? (p.golesLocal ?? 0) : (p.golesVisitante ?? 0);
@@ -265,7 +278,7 @@ class _EditorPartido extends StatelessWidget {
             TextButton.icon(
               onPressed: () => _anadirGol(context),
               icon: const Icon(Icons.sports_soccer_rounded, size: 18),
-              label: const Text('Gol con nombre'),
+              label: const Text('Gol con minuto'),
             ),
         ]),
       ]),
@@ -274,14 +287,13 @@ class _EditorPartido extends StatelessWidget {
 
   Future<void> _anadirGol(BuildContext context) async {
     String? equipo = p.localId;
-    final nombre = TextEditingController();
     final minuto = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, set) => AlertDialog(
           backgroundColor: MarbelColors.tarjeta,
-          title: const Text('Gol con nombre'),
+          title: const Text('Gol con minuto'),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Desplegable<String>(
               etiqueta: 'Equipo',
@@ -290,15 +302,9 @@ class _EditorPartido extends StatelessWidget {
               onCambio: (v) => set(() => equipo = v),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: nombre,
-              decoration: const InputDecoration(labelText: 'Nombre e inicial (ej.: Hugo S.)'),
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 8),
             TextField(controller: minuto, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minuto (opcional)')),
             const SizedBox(height: 10),
-            const Text('Solo nombre e inicial del apellido. Suma 1 al marcador de ese equipo.',
+            const Text('Sin nombres de jugadores: solo el equipo. Suma 1 al marcador de ese equipo.',
                 style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
           ]),
           actions: [
@@ -308,13 +314,11 @@ class _EditorPartido extends StatelessWidget {
         ),
       ),
     );
-    final n = _formatoNombre(nombre.text);
-    if (ok != true || equipo == null || n.length < 2 || !context.mounted) return;
+    if (ok != true || equipo == null || !context.mounted) return;
     await cola.nuevoGol({
       'id': nuevoId(),
       'partido_id': p.id,
       'equipo_id': equipo,
-      'jugador': n,
       'minuto': int.tryParse(minuto.text.trim()),
     });
     final campo = equipo == p.localId ? 'goles_local' : 'goles_visitante';
@@ -324,17 +328,6 @@ class _EditorPartido extends StatelessWidget {
     if (p.estado == Estado.programado) cambios['estado'] = 'en_juego';
     await cola.partido(p.id, cambios);
     if (context.mounted) avisar(context, 'Gol añadido');
-  }
-
-  /// "hugo sánchez" -> "Hugo S."
-  String _formatoNombre(String s) {
-    final partes = s.trim().split(RegExp(r'\s+')).where((x) => x.isNotEmpty).toList();
-    if (partes.isEmpty) return '';
-    String cap(String w) => w[0].toUpperCase() + w.substring(1).toLowerCase();
-    final nombre = cap(partes.first);
-    if (partes.length == 1) return nombre;
-    final ini = partes[1].replaceAll('.', '');
-    return ini.isEmpty ? nombre : '$nombre ${ini[0].toUpperCase()}.';
   }
 
   Future<void> _borrar(BuildContext context) async {
@@ -419,7 +412,7 @@ class _EditorPartido extends StatelessWidget {
           content: Desplegable<String>(
             etiqueta: 'Sede',
             valor: sede,
-            opciones: [for (final s in datos.sedes) (s.id, s.nombre)],
+            opciones: [for (final s in datos.sedesDePartido(p)) (s.id, s.nombre)],
             onCambio: (v) => set(() => sede = v),
           ),
           actions: [
@@ -500,7 +493,8 @@ Future<void> nuevoPartido(BuildContext context, {DateTime? dia, String? sedeId})
   String visitante = '';
   final base = dia ?? soloDia(DateTime.now());
   DateTime? hora = DateTime(base.year, base.month, base.day, 10);
-  String? sede = sedeId ?? (datos.sedes.isEmpty ? null : datos.sedes.first.id);
+  final sedesT = datos.sedesTorneo;
+  String? sede = sedesT.any((s) => s.id == sedeId) ? sedeId : sedesT.firstOrNull?.id;
   String? campo = 'Campo 1';
   String? error;
 
@@ -585,7 +579,7 @@ Future<void> nuevoPartido(BuildContext context, {DateTime? dia, String? sedeId})
                     child: Desplegable<String>(
                       etiqueta: 'Sede',
                       valor: sede,
-                      opciones: [for (final s in datos.sedes) (s.id, s.nombre)],
+                      opciones: [for (final s in sedesT) (s.id, s.nombre)],
                       onCambio: (v) => set(() => sede = v),
                     ),
                   ),

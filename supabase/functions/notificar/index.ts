@@ -140,8 +140,16 @@ interface Contexto {
   web: string;
   equipo: Map<string, string>; // id -> nombre
   sede: Map<string, string>; // id -> nombre
-  equiposPorSede: Map<string, Set<string>>; // nombre sede -> equipos que juegan allí
-  equiposPorCategoria: Map<string, Set<string>>; // nombre categoría -> equipos
+  torneoDePartido: Map<string, string>; // partido -> torneo
+  torneoDeAviso: Map<string, string>; // aviso -> torneo
+  // Por torneo: nombre sede / categoría -> equipos que juegan allí
+  equiposPorSede: Map<string, Map<string, Set<string>>>;
+  equiposPorCategoria: Map<string, Map<string, Set<string>>>;
+}
+
+/** Dirección de la web: el apartado del torneo si se sabe; si no, la de siempre. */
+function enlace(c: Contexto, torneo: string | undefined, apartado: string, antigua: string) {
+  return torneo ? `${c.web}#/torneos/${torneo}/${apartado}` : `${c.web}#/${antigua}`;
 }
 
 // Preferencias (mismo orden que en la app)
@@ -169,7 +177,7 @@ function preparar(e: Evento, c: Contexto, subs: Sus[]): { mensaje: Mensaje; para
   };
   const delPartido = (i: number) => subs.filter((s) => pref(s, i) && sigue(s, [d.local_id, d.visitante_id]));
   const tagPartido = `partido-${d.partido_id}`;
-  const cal = c.web + "#/calendario";
+  const cal = enlace(c, c.torneoDePartido.get(d.partido_id), "calendario", "calendario");
 
   switch (e.tipo) {
     case "pronto":
@@ -212,7 +220,7 @@ function preparar(e: Evento, c: Contexto, subs: Sus[]): { mensaje: Mensaje; para
       const mensaje = {
         title: d.automatico ? "🕒 Aviso de la organización" : "📣 Marbel Cup",
         body: texto.length > 180 ? texto.slice(0, 177) + "…" : texto,
-        url: c.web + "#/avisos",
+        url: enlace(c, c.torneoDeAviso.get(String(d.aviso_id)), "avisos", "avisos"),
         tag: `aviso-${d.aviso_id}`,
       };
       let para: Sus[];
@@ -222,12 +230,16 @@ function preparar(e: Evento, c: Contexto, subs: Sus[]): { mensaje: Mensaje; para
           para = subs.filter((s) => (pref(s, HORARIOS) || pref(s, GENERALES)) && sigue(s, ids));
           break;
         }
-        case "sede":
-          para = subs.filter((s) => (pref(s, HORARIOS) || pref(s, GENERALES)) && sigue(s, c.equiposPorSede.get(d.ambito_ref) ?? []));
+        case "sede": {
+          const t = c.torneoDeAviso.get(String(d.aviso_id)) ?? "";
+          para = subs.filter((s) => (pref(s, HORARIOS) || pref(s, GENERALES)) && sigue(s, c.equiposPorSede.get(t)?.get(d.ambito_ref) ?? []));
           break;
-        case "categoria":
-          para = subs.filter((s) => (pref(s, HORARIOS) || pref(s, GENERALES)) && sigue(s, c.equiposPorCategoria.get(d.ambito_ref) ?? []));
+        }
+        case "categoria": {
+          const t = c.torneoDeAviso.get(String(d.aviso_id)) ?? "";
+          para = subs.filter((s) => (pref(s, HORARIOS) || pref(s, GENERALES)) && sigue(s, c.equiposPorCategoria.get(t)?.get(d.ambito_ref) ?? []));
           break;
+        }
         default:
           para = subs.filter((s) => pref(s, GENERALES));
       }
@@ -281,11 +293,10 @@ Deno.serve(async () => {
     eventos.sort((a, b) => a.id - b.id);
 
     // 2. Datos para escribir los mensajes y elegir destinatarios
-    const [subs, equipos, sedes, torneo] = await Promise.all([
+    const [subs, equipos, sedes] = await Promise.all([
       rest("suscripciones_push?select=endpoint,p256dh,auth,equipos,prefs") as Promise<Sus[]>,
       rest("equipos?select=id,nombre"),
       rest("sedes?select=id,nombre"),
-      rest("torneos?activo=is.true&select=id&limit=1"),
     ]);
     if (!subs.length) return Response.json({ eventos: eventos.length, enviados: 0 });
 
@@ -293,30 +304,59 @@ Deno.serve(async () => {
       web: WEB,
       equipo: new Map(equipos.map((e: any) => [e.id, e.nombre])),
       sede: new Map(sedes.map((s: any) => [s.id, s.nombre])),
+      torneoDePartido: new Map(),
+      torneoDeAviso: new Map(),
       equiposPorSede: new Map(),
       equiposPorCategoria: new Map(),
     };
-    if (eventos.some((e) => e.tipo === "aviso") && torneo.length) {
-      const t = torneo[0].id;
+
+    // De qué torneo es cada partido y cada aviso (para abrir el torneo correcto)
+    const idsPartido = [...new Set(eventos.map((e) => e.datos?.partido_id).filter(Boolean))];
+    const idsAviso = [...new Set(eventos.filter((e) => e.tipo === "aviso").map((e) => e.datos?.aviso_id).filter(Boolean))];
+    const [partidosEv, avisosEv] = await Promise.all([
+      idsPartido.length ? rest(`partidos?id=in.(${idsPartido.join(",")})&select=id,ligas(torneo_id)`) : [],
+      idsAviso.length ? rest(`avisos?id=in.(${idsAviso.join(",")})&select=id,torneo_id`) : [],
+    ]);
+    for (const p of partidosEv) if (p.ligas?.torneo_id) ctx.torneoDePartido.set(p.id, p.ligas.torneo_id);
+    for (const a of avisosEv) if (a.torneo_id) ctx.torneoDeAviso.set(String(a.id), a.torneo_id);
+    // Un aviso antiguo sin torneo: como antes, el torneo en curso
+    const sinTorneo = avisosEv.filter((a: any) => !a.torneo_id);
+    if (sinTorneo.length) {
+      const [enCurso] = await rest("torneos?activo=is.true&select=id&order=inicio.asc&limit=1");
+      if (enCurso) for (const a of sinTorneo) ctx.torneoDeAviso.set(String(a.id), enCurso.id);
+    }
+
+    // Avisos a una sede o categoría: qué equipos juegan allí, en el torneo del aviso
+    const torneosAviso = new Set(
+      eventos
+        .filter((e) => e.tipo === "aviso" && (e.datos?.ambito === "sede" || e.datos?.ambito === "categoria"))
+        .map((e) => ctx.torneoDeAviso.get(String(e.datos?.aviso_id)))
+        .filter(Boolean) as string[],
+    );
+    for (const t of torneosAviso) {
       const [partidos, ligas] = await Promise.all([
         rest(`partidos?select=sede_id,local_id,visitante_id,ligas!inner(torneo_id)&ligas.torneo_id=eq.${t}`),
         rest(`ligas?torneo_id=eq.${t}&select=categorias(nombre),liga_equipos(equipo_id)`),
       ]);
+      const porSede = new Map<string, Set<string>>();
       for (const p of partidos) {
         const n = ctx.sede.get(p.sede_id);
         if (!n) continue;
-        const set = ctx.equiposPorSede.get(n) ?? new Set<string>();
+        const set = porSede.get(n) ?? new Set<string>();
         if (p.local_id) set.add(p.local_id);
         if (p.visitante_id) set.add(p.visitante_id);
-        ctx.equiposPorSede.set(n, set);
+        porSede.set(n, set);
       }
+      const porCategoria = new Map<string, Set<string>>();
       for (const l of ligas) {
         const n = l.categorias?.nombre;
         if (!n) continue;
-        const set = ctx.equiposPorCategoria.get(n) ?? new Set<string>();
+        const set = porCategoria.get(n) ?? new Set<string>();
         for (const le of l.liga_equipos ?? []) set.add(le.equipo_id);
-        ctx.equiposPorCategoria.set(n, set);
+        porCategoria.set(n, set);
       }
+      ctx.equiposPorSede.set(t, porSede);
+      ctx.equiposPorCategoria.set(t, porCategoria);
     }
 
     // 3. Enviar

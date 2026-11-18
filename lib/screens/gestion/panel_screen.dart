@@ -94,6 +94,7 @@ class _PanelScreenState extends State<PanelScreen> {
             body: Column(children: [
               cabecera,
               const FranjaConexion(panel: true),
+              const _SelectorTorneo(),
               Expanded(
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Container(
@@ -141,6 +142,7 @@ class _PanelScreenState extends State<PanelScreen> {
             child: Column(children: [
               cabecera,
               const FranjaConexion(panel: true),
+              const _SelectorTorneo(),
               SizedBox(
                 height: 56,
                 child: ListView(
@@ -226,3 +228,44 @@ class _PanelScreenState extends State<PanelScreen> {
     );
   }
 }
+
+/// Torneo con el que se trabaja en el panel (equipos, calendario, avisos...).
+/// Lista todos, también los ocultos, para poder prepararlos.
+class _SelectorTorneo extends StatelessWidget {
+  const _SelectorTorneo();
+
+  @override
+  Widget build(BuildContext context) {
+    final torneos = [...datos.torneos]..sort((a, b) => b.inicio.compareTo(a.inicio));
+    final actual = datos.torneo;
+    if (torneos.length < 2 || actual == null) return const SizedBox.shrink();
+    String estado(Torneo t) => [
+          t.activo ? 'en curso' : 'no en curso',
+          t.publicado ? 'publicado' : 'oculto',
+        ].join(' · ');
+    return Container(
+      width: double.infinity,
+      color: MarbelColors.tarjeta,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        Text('TORNEO', style: MarbelText.etiqueta(color: MarbelColors.apagado, size: 12)),
+        DropdownButton<String>(
+          value: actual.id,
+          underline: const SizedBox.shrink(),
+          dropdownColor: MarbelColors.tarjeta,
+          style: const TextStyle(fontWeight: FontWeight.w800, color: MarbelColors.cian, fontSize: 15),
+          items: [
+            for (final t in torneos)
+              DropdownMenuItem(value: t.id, child: Text('${t.nombre}  ·  ${estado(t)}', overflow: TextOverflow.ellipsis)),
+          ],
+          onChanged: (v) {
+            if (v != null) datos.elegirTorneo(v);
+          },
+        ),
+        const Text('Equipos, calendario, avisos y opiniones son de este torneo.',
+            style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
+      ]),
+    );
+  }
+}
+

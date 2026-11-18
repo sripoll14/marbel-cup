@@ -1,0 +1,63 @@
+{
+  "formato": "marbel-cup-torneo",
+  "version": 1,
+  "nombre": "Nombre del torneo",
+  "fechas": "6 de diciembre",
+  "inicio": "2026-12-06T09:00:00+01:00",
+  "jornadas": [
+    "2026-12-06"
+  ],
+  "sedes": [
+    "Albatera"
+  ],
+  "portada": {
+    "etiqueta": "Fútbol base",
+    "lema": "Una frase para la portada.",
+    "donde": "Albatera",
+    "titulo_info": [
+      "Nombre del",
+      "torneo"
+    ],
+    "datos": [
+      [
+        "Fechas",
+        "6 de diciembre"
+      ],
+      [
+        "Dónde",
+        "Albatera"
+      ]
+    ]
+  },
+  "inicio_bloques": [
+    {
+      "tipo": "sedes",
+      "titulo": "Dónde se juega"
+    }
+  ],
+  "info_bloques": [
+    {
+      "tipo": "texto",
+      "titulo": "El torneo",
+      "texto": "Cuenta aquí cómo es el torneo."
+    },
+    {
+      "tipo": "preguntas",
+      "titulo": "Preguntas frecuentes",
+      "items": [
+        [
+          "¿Una pregunta?",
+          "Su respuesta."
+        ]
+      ]
+    },
+    {
+      "tipo": "contacto",
+      "titulo": "¿Dudas o inscripciones?"
+    },
+    {
+      "tipo": "opinion",
+      "titulo": "Déjanos tu opinión"
+    }
+  ]
+}

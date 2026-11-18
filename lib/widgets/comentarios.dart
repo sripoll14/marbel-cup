@@ -43,35 +43,13 @@ class _DejanosTuOpinionState extends State<DejanosTuOpinion> {
     if (t.length < 2 || _enviando) return;
     setState(() => _enviando = true);
     try {
-      await db.rpc('opinar', params: {'p_texto': t});
+      await db.rpc('opinar', params: {'p_texto': t, 'p_torneo': datos.torneo?.id});
       _texto.clear();
       if (mounted) setState(() => _enviada = true);
     } catch (e) {
       if (mounted) avisar(context, mensajeError(e), error: true);
     }
     if (mounted) setState(() => _enviando = false);
-  }
-
-  Future<void> _pedirCuenta() async {
-    var registro = false;
-    await showDialog<void>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => AlertDialog(
-          backgroundColor: MarbelColors.tarjeta,
-          title: Text(registro ? 'Crear cuenta' : 'Entrar'),
-          content: SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: registro
-                  ? FormularioRegistro(alEntrar: () => Navigator.pop(c), alTenerCuenta: () => set(() => registro = false))
-                  : FormularioEntrar(alEntrar: () => Navigator.pop(c), alCrearCuenta: () => set(() => registro = true)),
-            ),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cerrar'))],
-        ),
-      ),
-    );
   }
 
   @override
@@ -97,7 +75,7 @@ class _DejanosTuOpinionState extends State<DejanosTuOpinion> {
                   style: TextStyle(color: MarbelColors.texto2)),
             ),
             const SizedBox(width: 8),
-            BotonCian('Entrar', onTap: _pedirCuenta),
+            BotonCian('Entrar', onTap: () => pedirCuenta(context)),
           ]),
           const SizedBox(height: 10),
           privado,

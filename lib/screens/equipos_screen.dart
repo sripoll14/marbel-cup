@@ -30,9 +30,17 @@ class _EquiposScreenState extends State<EquiposScreen> {
       .map((l) => (datos.categoria(l.categoriaId), Nivel.de(l.nivelId)))
       .toList();
 
+  /// Equipos que se enseñan: todos los clubes si el proyecto lo pide
+  /// ("equipos": "todos"); si no, solo los inscritos en sus ligas.
+  List<Equipo> get _base {
+    if (datos.proyecto?.todosLosEquipos ?? true) return datos.equipos;
+    final ids = {for (final l in datos.ligasActuales) ...?datos.equiposDeLiga[l.id]};
+    return datos.equipos.where((e) => ids.contains(e.id)).toList();
+  }
+
   List<Equipo> _filtrados() {
     final q = _q.trim().toLowerCase();
-    return datos.equipos.where((e) {
+    return _base.where((e) {
       if (q.isNotEmpty && !('${e.nombre} ${e.localidad ?? ''}'.toLowerCase().contains(q))) return false;
       final ls = _ligas(e);
       if (_cat != 'Todas' && !ls.any((x) => x.$1?.grupo == _cat)) return false;
@@ -89,7 +97,7 @@ class _EquiposScreenState extends State<EquiposScreen> {
               Tarjeta(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('${datos.equipos.length}', style: MarbelText.titular(56, color: MarbelColors.cian)),
+                  Text('${_base.length}', style: MarbelText.titular(56, color: MarbelColors.cian)),
                   Text('EQUIPOS YA DENTRO', style: MarbelText.etiqueta(color: MarbelColors.apagado)),
                 ]),
               ),
@@ -103,7 +111,13 @@ class _EquiposScreenState extends State<EquiposScreen> {
                     Text(abierta ? 'Inscripción abierta' : 'Inscripción cerrada', style: const TextStyle(fontWeight: FontWeight.w700)),
                   ]),
                   const SizedBox(height: 6),
-                  const Text('Inscripción hasta el 20 de diciembre · plazas limitadas', style: TextStyle(color: MarbelColors.texto2, fontSize: 14)),
+                  Text(
+                      datos.proyecto?.inscripcionTexto != null
+                          ? datos.proyecto!.inscripcionTexto!
+                          : t?.inscripcionHasta != null
+                              ? 'Inscripción hasta el ${t!.inscripcionHasta!.day} ${mesCorto(t.inscripcionHasta!)} · plazas limitadas'
+                              : 'Plazas limitadas',
+                      style: const TextStyle(color: MarbelColors.texto2, fontSize: 14)),
                   const SizedBox(height: 6),
                   InkWell(
                     onTap: () => abrir(Contenido.whatsappUrl1),
@@ -137,7 +151,7 @@ class _EquiposScreenState extends State<EquiposScreen> {
             for (final g in ['Todos', 'Masculino', 'Femenino'])
               ChipFiltro(texto: g, elegido: _genero == g, onTap: () => setState(() => _genero = g)),
           ]),
-          Text('${lista.length} de ${datos.equipos.length} equipos',
+          Text('${lista.length} de ${_base.length} equipos',
               style: const TextStyle(color: MarbelColors.cian, fontWeight: FontWeight.w700)),
         ]),
       ),
@@ -170,7 +184,7 @@ class _EquiposScreenState extends State<EquiposScreen> {
       padding: const EdgeInsets.only(bottom: 32),
       children: [
         CabeceraMovil('Equipos',
-            derecha: Text('${datos.equipos.length} inscritos',
+            derecha: Text('${_base.length} inscritos',
                 style: const TextStyle(color: MarbelColors.cian, fontWeight: FontWeight.w700))),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: _buscador()),
         const SizedBox(height: 10),

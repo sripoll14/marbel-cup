@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'proyecto.dart';
 
 // ---------------------------------------------------------------------------
 // Utilidades de lectura
@@ -46,10 +47,25 @@ class Torneo {
             ? null
             : DateTime.parse(m['inscripcion_hasta'] as String),
         activo = m['activo'] as bool? ?? false,
-        publicado = m['publicado'] as bool? ?? true;
+        publicado = m['publicado'] as bool? ?? true,
+        proyecto = Proyecto.desde(m['proyecto']),
+        sedes = [for (final s in (m['sedes'] as List?) ?? const []) s as String];
 
   final String id;
   final String nombre;
+
+  /// Todo su contenido (portada, información, horarios, precios...): el
+  /// archivo .json que se sube desde el panel. null = aún sin proyecto.
+  final Proyecto? proyecto;
+
+  /// "Vega Baja · 4 sedes"
+  String? get lugar => proyecto?.donde;
+
+  /// Sedes donde se juega (ids). Vacío = las que salgan en sus partidos.
+  final List<String> sedes;
+
+  /// Se ve en «Torneos actuales»: en curso y publicado.
+  bool get visible => activo && publicado;
   final String fechasTexto;
   final DateTime inicio;
   final DateTime? inscripcionHasta;
@@ -295,13 +311,11 @@ class Gol {
       : id = m['id'] as String,
         partidoId = m['partido_id'] as String,
         equipoId = m['equipo_id'] as String,
-        jugador = m['jugador'] as String,
         minuto = _i(m['minuto']);
 
   final String id;
   final String partidoId;
   final String equipoId;
-  final String jugador;
   final int? minuto;
 }
 

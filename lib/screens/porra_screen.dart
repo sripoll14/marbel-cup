@@ -32,9 +32,8 @@ class _PorraScreenState extends State<PorraScreen> {
         listenable: sesion,
         builder: (context, _) {
           final ancho = esAncho(context);
-          final ligas = datos.ligasActuales;
           _liga ??= ligaInicial();
-          final ligaId = ligas.isEmpty ? null : (datos.liga(_liga ?? '') == null ? ligas.first.id : _liga!);
+          final ligaId = datos.ligaDelTorneo(_liga);
 
           final juego = !sesion.conectado
               ? _sinCuenta()
@@ -444,13 +443,13 @@ class _RankingState extends State<_Ranking> {
   String? _clave;
 
   Future<List<FilaRanking>> _cargar() async {
-    final r = await db.rpc('ranking_porra', params: {'p_liga': _soloLiga ? widget.ligaId : null});
+    final r = await db.rpc('ranking_torneo', params: {'p_torneo': datos.torneo?.id, 'p_liga': _soloLiga ? widget.ligaId : null});
     return (r as List).map((m) => FilaRanking.fromMap(Map<String, dynamic>.from(m as Map))).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final clave = '${_soloLiga ? widget.ligaId : 'todas'}-${datos.partidos.where((p) => p.estado == Estado.finalizado).length}';
+    final clave = '${datos.torneo?.id}-${_soloLiga ? widget.ligaId : 'todas'}-${datos.partidos.where((p) => p.estado == Estado.finalizado).length}';
     if (_clave != clave) {
       _clave = clave;
       _f = _cargar();

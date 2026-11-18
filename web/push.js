@@ -99,3 +99,15 @@ window.marbelPush = (function () {
 
   return { soportado, necesitaInstalar, permiso, activar, actual, desactivar, mostrarInstalar };
 })();
+
+// Descargar un archivo de texto (proyectos de torneo desde el panel)
+window.marbelDescargar = function (nombre, texto) {
+  var blob = new Blob([texto], { type: 'application/json;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+};

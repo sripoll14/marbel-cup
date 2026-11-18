@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/env.dart';
 import 'modelos.dart';
+import 'proyecto.dart';
+import 'sesion.dart';
 
 SupabaseClient get db => Supabase.instance.client;
 
@@ -38,9 +40,18 @@ class Datos extends ChangeNotifier {
 
   /// Orden a mano de la clasificación ("liga|equipo" -> posición), para empates.
   Map<String, int> ordenManual = {};
+  /// Partidos, goles y avisos del torneo elegido.
   List<Partido> partidos = [];
   List<Gol> goles = [];
   List<Aviso> avisos = [];
+
+  /// Todos los partidos y goles (de todos los torneos). Para la mesa de sede.
+  List<Partido> todosPartidos = [];
+  List<Gol> todosGoles = [];
+
+  /// Torneo que ha elegido la persona en «Torneos actuales» (se guarda en el móvil).
+  String? _elegido;
+  static const _claveElegido = 'torneo_elegido';
   List<Foto> fotos = [];
 
   /// Filas tal cual llegan del servidor, por tabla (lo que se guarda en la copia).
@@ -72,6 +83,9 @@ class Datos extends ChangeNotifier {
       return;
     }
     // 1. Lo último guardado en el móvil, al instante (y sirve sin conexión)
+    try {
+      _elegido = (await SharedPreferences.getInstance()).getString(_claveElegido);
+    } catch (_) {}
     final habiaCopia = await _leerCopia();
     if (habiaCopia) {
       cargando = false;
@@ -161,9 +175,8 @@ class Datos extends ChangeNotifier {
     return s == null ? f : s(tabla, f);
   }
 
-  void _construir() {
+  void _construir({bool avisar = true}) {
     torneos = _de('torneos').map(Torneo.fromMap).toList();
-    torneo = torneos.where((t) => t.activo).firstOrNull ?? (torneos.isEmpty ? null : torneos.first);
     sedes = _de('sedes').map(Sede.fromMap).toList();
     categorias = _de('categorias').map(Categoria.fromMap).toList();
     equipos = _de('equipos').map(Equipo.fromMap).toList();
@@ -175,15 +188,24 @@ class Datos extends ChangeNotifier {
       final o = m['orden_manual'];
       if (o != null) ordenManual['${m['liga_id']}|${m['equipo_id']}'] = (o as num).toInt();
     }
-    partidos = _de('partidos').map(Partido.fromMap).toList()..sort((a, b) => a.hora.compareTo(b.hora));
-    goles = _de('goles').map(Gol.fromMap).toList();
-    avisos = _de('avisos').map(Aviso.fromMap).toList()
+    todosPartidos = _de('partidos').map(Partido.fromMap).toList()..sort((a, b) => a.hora.compareTo(b.hora));
+    todosGoles = _de('goles').map(Gol.fromMap).toList();
+    torneo = _torneoAEnsenar();
+    // Lo que se ve es solo del torneo elegido
+    final ligasT = {for (final l in ligas) if (l.torneoId == torneo?.id) l.id};
+    partidos = todosPartidos.where((p) => ligasT.contains(p.ligaId)).toList();
+    final idsP = {for (final p in partidos) p.id};
+    goles = todosGoles.where((g) => idsP.contains(g.partidoId)).toList();
+    avisos = _de('avisos')
+        .where((m) => m['torneo_id'] == null || m['torneo_id'] == torneo?.id)
+        .map(Aviso.fromMap)
+        .toList()
       ..sort((a, b) {
         if (a.fijado != b.fijado) return a.fijado ? -1 : 1;
         return b.creado.compareTo(a.creado);
       });
     fotos = _de('fotos').map(Foto.fromMap).toList()..sort((a, b) => a.orden.compareTo(b.orden));
-    notifyListeners();
+    if (avisar) notifyListeners();
   }
 
   // ---------- Copia en el móvil ----------
@@ -281,10 +303,135 @@ class Datos extends ChangeNotifier {
   Categoria? categoria(String? id) =>
       id == null ? null : categorias.where((c) => c.id == id).firstOrNull;
 
+  // -------------------------------------------------------------------------
+  // Varios torneos
+  // -------------------------------------------------------------------------
+
+  /// Torneos en curso y publicados («Torneos actuales»), por fecha.
+  List<Torneo> get torneosVisibles => torneos.where((t) => t.visible).toList()
+    ..sort((a, b) => a.inicio.compareTo(b.inicio));
+
+  /// Último día con partidos de un torneo (o su primer día si aún no hay calendario).
+  DateTime finDe(Torneo t) {
+    final ligasT = {for (final l in ligas) if (l.torneoId == t.id) l.id};
+    var fin = soloDia(t.inicio);
+    final js = t.proyecto?.jornadas ?? const <DateTime>[];
+    if (js.isNotEmpty && js.last.isAfter(fin)) fin = js.last;
+    for (final p in todosPartidos) {
+      if (ligasT.contains(p.ligaId) && soloDia(p.hora).isAfter(fin)) fin = soloDia(p.hora);
+    }
+    return fin;
+  }
+
+  Torneo? _torneoAEnsenar() {
+    // 1. El que haya elegido (los ocultos, solo el personal, para prepararlos)
+    final elegido = torneos.where((t) => t.id == _elegido).firstOrNull;
+    if (elegido != null && (elegido.visible || sesion.esPersonal)) return elegido;
+    // 2. El próximo (o el que se está jugando) de los torneos actuales
+    final visibles = torneosVisibles;
+    final hoy = soloDia(DateTime.now());
+    final proximo = visibles.where((t) => !finDe(t).isBefore(hoy)).firstOrNull;
+    if (proximo != null) return proximo;
+    if (visibles.isNotEmpty) return visibles.last;
+    // 3. Si no hay ninguno publicado: el público no ve ninguno; el personal,
+    //    el que esté en curso o el más reciente (para prepararlo)
+    if (!sesion.esPersonal) return null;
+    return torneos.where((t) => t.activo).firstOrNull ?? torneos.firstOrNull;
+  }
+
+  /// La página de un torneo (/torneos/<id>) fija ese torneo para toda la web,
+  /// sin repintar (se llama mientras se pinta esa página).
+  void fijarTorneo(String id) {
+    if (torneo?.id == id && _elegido == id) return;
+    _elegido = id;
+    _construir(avisar: false);
+    SharedPreferences.getInstance().then((p) => p.setString(_claveElegido, id)).catchError((_) => false);
+  }
+
+  /// Días de juego de un torneo (su proyecto, sus partidos o su primer día).
+  List<DateTime> jornadasDe(Torneo t) {
+    final js = t.proyecto?.jornadas ?? const <DateTime>[];
+    if (js.isNotEmpty) return js;
+    final ligasT = {for (final l in ligas) if (l.torneoId == t.id) l.id};
+    final d = todosPartidos.where((p) => ligasT.contains(p.ligaId)).map((p) => soloDia(p.hora)).toSet().toList()..sort();
+    return d.isNotEmpty ? d : [soloDia(t.inicio)];
+  }
+
+  /// Partidos de varios torneos (p. ej. los visibles, para la portada).
+  List<Partido> partidosDe(Iterable<Torneo> ts) {
+    final ids = {for (final t in ts) t.id};
+    final ligasT = {for (final l in ligas) if (ids.contains(l.torneoId)) l.id};
+    return todosPartidos.where((p) => ligasT.contains(p.ligaId)).toList();
+  }
+
+  /// Cambia el torneo que se enseña en toda la web y la app.
+  Future<void> elegirTorneo(String id) async {
+    _elegido = id;
+    try {
+      await (await SharedPreferences.getInstance()).setString(_claveElegido, id);
+    } catch (_) {}
+    _construir();
+  }
+
+  /// Vuelve a calcular qué torneo enseñar (p. ej. al entrar o salir el personal).
+  void repasarTorneo() => _construir();
+
+  /// Proyecto (contenido) del torneo elegido.
+  Proyecto? get proyecto => torneo?.proyecto;
+
+  /// Días de juego del torneo elegido.
+  List<DateTime> get jornadasTorneo {
+    final t = torneo;
+    if (t == null) return const [];
+    final js = t.proyecto?.jornadas ?? const <DateTime>[];
+    if (js.isNotEmpty) return js;
+    final d = partidos.map((p) => soloDia(p.hora)).toSet().toList()..sort();
+    return d.isNotEmpty ? d : [soloDia(t.inicio)];
+  }
+
+  /// Sedes del torneo elegido.
+  List<Sede> get sedesTorneo => sedesDe(torneo);
+
+  /// Sedes de un torneo: las de su proyecto, en orden. Si no trae, las de sus
+  /// partidos; y si aún no tiene partidos, todas.
+  List<Sede> sedesDe(Torneo? t) {
+    if (t == null) return sedes;
+    if (t.sedes.isNotEmpty) {
+      return [for (final id in t.sedes) ...sedes.where((s) => s.id == id)];
+    }
+    final ligasT = {for (final l in ligas) if (l.torneoId == t.id) l.id};
+    final usadas = {for (final p in todosPartidos) if (ligasT.contains(p.ligaId)) p.sedeId};
+    final enPartidos = sedes.where((s) => usadas.contains(s.id)).toList();
+    return enPartidos.isNotEmpty ? enPartidos : sedes;
+  }
+
+  /// Sedes de todos los torneos en curso (y del elegido), sin repetir.
+  List<Sede> get sedesEnCurso {
+    final ts = [for (final t in torneos) if (t.activo || t.id == torneo?.id) t];
+    final vistas = <String>{};
+    return [
+      for (final t in ts)
+        for (final s in sedesDe(t))
+          if (vistas.add(s.id)) s,
+    ];
+  }
+
+  /// Sedes del torneo al que pertenece un partido.
+  List<Sede> sedesDePartido(Partido p) =>
+      sedesDe(torneos.where((t) => t.id == liga(p.ligaId)?.torneoId).firstOrNull);
+
+  /// [id] si es una liga del torneo elegido; si no, la primera de ese torneo.
+  String? ligaDelTorneo(String? id) {
+    final ls = ligasActuales;
+    if (ls.isEmpty) return null;
+    return ls.any((l) => l.id == id) ? id : ls.first.id;
+  }
+
   /// Ligas del torneo actual, ordenadas por categoría y nivel.
   List<Liga> get ligasActuales {
     final t = torneo;
-    final l = ligas.where((x) => t == null || x.torneoId == t.id).toList();
+    if (t == null) return [];
+    final l = ligas.where((x) => x.torneoId == t.id).toList();
     l.sort((a, b) {
       final ca = categoria(a.categoriaId)?.orden ?? 0;
       final cb = categoria(b.categoriaId)?.orden ?? 0;
@@ -327,9 +474,10 @@ class Datos extends ChangeNotifier {
       nombreLiga(p.ligaId, corto: corto, sinGrupo: p.fase != Fase.liga && tieneFaseConjunta(p.ligaId));
 
   /// Ligas de la misma categoría y nivel (los grupos), en orden.
-  List<Liga> gruposDe(Liga l) => ligasActuales
-      .where((x) => x.categoriaId == l.categoriaId && x.nivelId == l.nivelId)
-      .toList();
+  List<Liga> gruposDe(Liga l) => ligas
+      .where((x) => x.torneoId == l.torneoId && x.categoriaId == l.categoriaId && x.nivelId == l.nivelId)
+      .toList()
+    ..sort((a, b) => (a.grupo ?? '').compareTo(b.grupo ?? ''));
 
   Nivel nivelDeLiga(String ligaId) => Nivel.de(liga(ligaId)?.nivelId);
 
@@ -352,10 +500,7 @@ class Datos extends ChangeNotifier {
   List<DateTime> get diasTorneo {
     final d = partidos.map((p) => soloDia(p.hora)).toSet().toList()..sort();
     if (d.isNotEmpty) return d;
-    return [
-      DateTime(2026, 12, 26), DateTime(2026, 12, 27),
-      DateTime(2027, 1, 2), DateTime(2027, 1, 3),
-    ];
+    return jornadasTorneo;
   }
 
   // -------------------------------------------------------------------------

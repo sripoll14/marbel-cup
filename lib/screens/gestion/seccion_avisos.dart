@@ -45,7 +45,7 @@ class _SeccionAvisosState extends State<SeccionAvisos> {
   List<(String, String)> get _opcionesRef => switch (_ambito) {
         'sede' => _mesa
             ? [if (_ref != null) (_ref!, _ref!)]
-            : [for (final s in datos.sedes) (s.nombre, s.nombre)],
+            : [for (final s in datos.sedesTorneo) (s.nombre, s.nombre)],
         'categoria' => [for (final c in datos.categorias) (c.nombre, c.nombre)],
         'equipo' => [for (final e in datos.equipos) (e.nombre, e.nombre)],
         _ => const [],

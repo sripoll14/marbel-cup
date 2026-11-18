@@ -3,17 +3,19 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../data/contenido.dart';
 import '../theme/app_theme.dart';
 
 /// Mapa de la Comunidad Valenciana con zoom a la Vega Baja y las 4 sedes,
 /// más el panel lateral con los botones de cada sede y su ficha.
 /// Es el mismo mapa del diseño (dibujo en un lienzo de 380 x 620).
 class MapaSedes extends StatefulWidget {
-  const MapaSedes({super.key, required this.sedes});
+  const MapaSedes({super.key, required this.sedes, this.resumen});
 
   /// Filas de la tabla `sedes`.
   final List<Map<String, dynamic>> sedes;
+
+  /// Qué se juega en la sede de esa posición ("Sáb 26: Infantil F11 · ...").
+  final String Function(int)? resumen;
 
   @override
   State<MapaSedes> createState() => _MapaSedesState();
@@ -59,6 +61,7 @@ class _MapaSedesState extends State<MapaSedes>
         ),
       );
       final panel = _Panel(
+        resumen: widget.resumen,
         sedes: widget.sedes,
         sel: _sel,
         onElegir: (i) => _elegir(i, ampliar: true),
@@ -496,7 +499,9 @@ class _BotonMapa extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _Panel extends StatelessWidget {
-  const _Panel({required this.sedes, required this.sel, required this.onElegir});
+  const _Panel({required this.sedes, required this.sel, required this.onElegir, this.resumen});
+
+  final String Function(int)? resumen;
 
   final List<Map<String, dynamic>> sedes;
   final int sel;
@@ -555,9 +560,9 @@ class _Panel extends StatelessWidget {
                       runSpacing: 8,
                       children: [for (final x in servicios) ChipServicio(x)],
                     ),
-                    if (Contenido.resumenSede(sel).isNotEmpty) ...[
+                    if ((resumen?.call(sel) ?? '').isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Text(Contenido.resumenSede(sel),
+                      Text(resumen!(sel),
                           style: const TextStyle(color: MarbelColors.texto2, fontSize: 14, height: 1.5)),
                     ],
                     if (maps != null) ...[

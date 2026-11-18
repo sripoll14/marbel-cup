@@ -104,39 +104,43 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
   // Ordenador
   // -------------------------------------------------------------------------
   Widget _web(BuildContext context) {
+    final horario = datos.proyecto?.horario ?? const <DiaHorario>[];
+    final conHorario = horario.isNotEmpty; // el proyecto trae cuadro de qué se juega en cada sede
     final diasHorario = _dia == -1
-        ? Contenido.horario
-        : Contenido.horario.where((d) => _dia < _dias.length && soloDia(d.dia) == _dias[_dia]).toList();
+        ? horario
+        : horario.where((d) => _dia < _dias.length && soloDia(d.dia) == _dias[_dia]).toList();
     return PaginaPublica(
       children: [
         const SizedBox(height: 48),
-        const AnchoMax(
+        AnchoMax(
           child: TituloSeccion(
-            etiqueta: 'IV Torneo Navideño',
+            etiqueta: datos.torneo?.nombre ?? 'IV Torneo Navideño',
             titulo: 'Calendario',
             tamano: 80,
-            subtitulo: 'Fechas, categorías y niveles por sede. Toca un nivel para ver solo sus categorías.',
+            subtitulo: conHorario ? 'Fechas, categorías y niveles por sede. Toca un nivel para ver solo sus categorías.' : null,
           ),
         ),
         const SizedBox(height: 24),
         AnchoMax(child: _chipsDias()),
-        const SizedBox(height: 14),
-        AnchoMax(
-          child: Row(children: [
-            Text('NIVEL:', style: MarbelText.etiqueta(color: MarbelColors.apagado)),
-            const SizedBox(width: 10),
-            Expanded(child: _chipsNivel()),
-          ]),
-        ),
-        const SizedBox(height: 20),
-        for (final d in diasHorario) ...[
-          AnchoMax(child: RejillaDia(dia: d, nivel: _nivel)),
-          const SizedBox(height: 18),
+        if (conHorario) ...[
+          const SizedBox(height: 14),
+          AnchoMax(
+            child: Row(children: [
+              Text('NIVEL:', style: MarbelText.etiqueta(color: MarbelColors.apagado)),
+              const SizedBox(width: 10),
+              Expanded(child: _chipsNivel()),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          for (final d in diasHorario) ...[
+            AnchoMax(child: RejillaDia(dia: d, nivel: _nivel)),
+            const SizedBox(height: 18),
+          ],
+          const AnchoMax(
+            child: Text('Todo el día = la categoría juega en dos sedes a la vez.',
+                style: TextStyle(color: MarbelColors.apagado)),
+          ),
         ],
-        const AnchoMax(
-          child: Text('Todo el día = la categoría juega en dos sedes a la vez.',
-              style: TextStyle(color: MarbelColors.apagado)),
-        ),
         const SizedBox(height: 48),
         AnchoMax(
           child: TituloSeccion(
@@ -146,7 +150,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
                   texto: '★ Mis favoritos', elegido: _soloFavoritos, colorElegido: MarbelColors.medio,
                   onTap: () => setState(() => _soloFavoritos = !_soloFavoritos)),
               ChipFiltro(texto: 'Todas las sedes', elegido: _sede == 'todas', onTap: () => setState(() => _sede = 'todas')),
-              for (final s in datos.sedes)
+              for (final s in datos.sedesTorneo)
                 ChipFiltro(texto: s.corto, elegido: _sede == s.id, onTap: () => setState(() => _sede = s.id)),
             ]),
           ),
@@ -178,7 +182,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
                 children: [
                   SelectorLiga(ligaId: _ligaMovil, onCambio: (l) => setState(() => _ligaMovil = l)),
                   const SizedBox(height: 16),
-                  CuadroFinal(ligaId: datos.liga(_ligaMovil ?? '') == null ? ligas.first.id : _ligaMovil!),
+                  CuadroFinal(ligaId: datos.ligaDelTorneo(_ligaMovil) ?? ligas.first.id),
                 ],
               );
       default:
@@ -208,11 +212,12 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
             const SizedBox(height: 10),
             _listaPartidos(context),
             const SizedBox(height: 18),
+            if ((datos.proyecto?.horario ?? const []).isNotEmpty)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               title: Text('QUÉ SE JUEGA EN CADA SEDE', style: MarbelText.etiqueta()),
               children: [
-                for (final d in Contenido.horario) ...[
+                for (final d in datos.proyecto?.horario ?? const <DiaHorario>[]) ...[
                   RejillaDia(dia: d, nivel: _nivel),
                   const SizedBox(height: 12),
                 ],
@@ -315,7 +320,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
         else ...[
           SelectorLiga(ligaId: _ligaMovil, onCambio: (l) => setState(() => _ligaMovil = l)),
           const SizedBox(height: 12),
-          tabla(datos.liga(_ligaMovil ?? '') == null ? datos.ligasActuales.first.id : _ligaMovil!),
+          tabla(datos.ligaDelTorneo(_ligaMovil) ?? datos.ligasActuales.first.id),
         ],
         const Text(
           'Liga de 5: cada equipo juega 4 partidos · los 4 primeros pasan a semifinales (1º vs 4º · 2º vs 3º) · empate a puntos: lo resuelve la organización según el reglamento',
@@ -374,7 +379,7 @@ class RejillaDia extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ancho = esAncho(context);
-    final sedes = datos.sedes;
+    final sedes = datos.sedesTorneo;
     final nombres = sedes.isEmpty
         ? const ['Albatera', 'Granja de Rocamora', 'Rafal', 'Bigastro']
         : sedes.map((s) => s.nombre).toList();
