@@ -111,3 +111,18 @@ window.marbelDescargar = function (nombre, texto) {
   a.click();
   setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
 };
+
+// Hueco de abajo del iPhone (la rayita de inicio), en píxeles. 0 si no hay.
+window.marbelHuecoAbajo = function () {
+  try {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:0;visibility:hidden;' +
+      'padding-bottom:env(safe-area-inset-bottom)';
+    document.body.appendChild(d);
+    var v = parseFloat(getComputedStyle(d).paddingBottom) || 0;
+    d.remove();
+    return v;
+  } catch (_) {
+    return 0;
+  }
+};

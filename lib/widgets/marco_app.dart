@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/push_js_stub.dart' if (dart.library.js_interop) '../data/push_js_web.dart' as js;
 import '../data/sesion.dart';
 import '../theme/app_theme.dart';
 import 'comunes.dart';
@@ -60,13 +61,25 @@ class MarcoApp extends StatelessWidget {
         bottom: false,
         child: Column(children: [const FranjaConexion(), Expanded(child: child)]),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: i,
-        onDestinationSelected: (n) => context.go(_app[n].ruta),
-        destinations: [
-          for (final s in _app) NavigationDestination(icon: Icon(s.icono), label: s.nombre),
-        ],
-      ),
+      // El hueco de abajo (la rayita del iPhone) se mide en la página: una sola vez y justo
+      bottomNavigationBar: Builder(builder: (context) {
+        final mq = MediaQuery.of(context);
+        final abajo = js.huecoAbajo();
+        return MediaQuery(
+          data: mq.copyWith(
+            padding: mq.padding.copyWith(bottom: abajo),
+            viewPadding: mq.viewPadding.copyWith(bottom: abajo),
+          ),
+          child: NavigationBar(
+            height: 68,
+            selectedIndex: i,
+            onDestinationSelected: (n) => context.go(_app[n].ruta),
+            destinations: [
+              for (final s in _app) NavigationDestination(icon: Icon(s.icono), label: s.nombre),
+            ],
+          ),
+        );
+      }),
     );
   }
 }

@@ -27,3 +27,15 @@ external void _descargar(String nombre, String texto);
 
 /// Descarga un archivo de texto (web/push.js).
 void descargar(String nombre, String texto) => _descargar(nombre, texto);
+
+@JS('marbelHuecoAbajo')
+external JSNumber? _huecoAbajo();
+
+/// Hueco de abajo del iPhone (rayita de inicio), en píxeles lógicos (web/push.js).
+double huecoAbajo() {
+  try {
+    return _huecoAbajo()?.toDartDouble ?? 0;
+  } catch (_) {
+    return 0;
+  }
+}

@@ -7,3 +7,4 @@ Future<String> actual() async => '';
 Future<String> desactivar() async => '';
 void mostrarInstalar() {}
 void descargar(String nombre, String texto) {}
+double huecoAbajo() => 0;

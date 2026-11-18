@@ -5,7 +5,7 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Marbel Cup · IV Torneo Navideño</title>
   <meta name="description" content="Calendario, resultados, clasificaciones y equipos de Marbel Football Cup. 26-27 de diciembre y 2-3 de enero en la Vega Baja (Alicante).">
   <meta name="theme-color" content="#060A2B">
@@ -37,6 +37,8 @@
     html, body { margin: 0; height: 100%; background: #060A2B; }
     /* La página nunca se desplaza: así el sitio del toque coincide siempre con el botón (iPhone) */
     html, body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; }
+    /* Aquí dentro se dibuja la app: toda la pantalla, hasta abajo del todo */
+    #marbel-app { position: fixed; top: 0; right: 0; bottom: 0; left: 0; touch-action: manipulation; }
 
     /* Avisos de instalación (Android e iPhone) */
     .mc-inst { position: fixed; z-index: 9999; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
@@ -62,6 +64,7 @@
   </style>
 </head>
 <body>
+  <div id="marbel-app"></div>
   <!-- Android / Chrome: "Instala Marbel Cup" -->
   <div class="mc-inst" id="mc-android" role="dialog" aria-label="Instalar la app">
     <div class="mc-fila">
