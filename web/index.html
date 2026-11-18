@@ -15,9 +15,9 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <!-- "black" y no "black-translucent": con la barra translúcida, en el iPhone instalado los toques
-       caían más abajo que los botones -->
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <!-- "black-translucent": la app ocupa toda la pantalla. Con "black", el iPhone (iOS 26) deja la
+       app más corta y abajo sale una franja vacía. El hueco de la hora lo deja #marbel-app (top). -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Marbel Cup">
   <link rel="manifest" href="manifest.json">
 
@@ -38,7 +38,8 @@
     /* La página nunca se desplaza: así el sitio del toque coincide siempre con el botón (iPhone) */
     html, body { position: fixed; inset: 0; overflow: hidden; overscroll-behavior: none; }
     /* Aquí dentro se dibuja la app: toda la pantalla, hasta abajo del todo */
-    #marbel-app { position: fixed; top: 0; right: 0; bottom: 0; left: 0; touch-action: manipulation; }
+    /* Arriba deja el hueco de la hora y la batería (iPhone); abajo llega hasta el final de la pantalla */
+    #marbel-app { position: fixed; top: env(safe-area-inset-top, 0px); right: 0; bottom: 0; left: 0; touch-action: manipulation; }
 
     /* Avisos de instalación (Android e iPhone) */
     .mc-inst { position: fixed; z-index: 9999; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
@@ -65,40 +66,6 @@
 </head>
 <body>
   <div id="marbel-app"></div>
-  <!-- iPhone con la app instalada: el iPhone dibuja la app desde arriba del todo (debajo de la
-       hora y la batería) pero dice que la pantalla es más corta, y abajo quedaba una franja vacía.
-       Aquí la caja de la app se coloca a mano: empieza debajo de la hora y llega hasta abajo. -->
-  <script>
-    (function () {
-      var ua = navigator.userAgent;
-      var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      var instalada = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-      if (!ios || !instalada) return;
-      function margen(lado) {
-        var d = document.createElement('div');
-        d.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;padding-top:env(safe-area-inset-' + lado + ')';
-        document.body.appendChild(d);
-        var v = parseFloat(getComputedStyle(d).paddingTop) || 0;
-        d.remove();
-        return v;
-      }
-      function ajustar() {
-        var app = document.getElementById('marbel-app');
-        var arriba = margen('top');
-        if (arriba <= 0) return; // la app no está debajo de la hora: no hace falta
-        var vertical = window.innerHeight >= window.innerWidth;
-        var pantalla = vertical ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-        var alto = Math.max(pantalla, window.innerHeight);
-        app.style.top = arriba + 'px';
-        app.style.bottom = 'auto';
-        app.style.height = (alto - arriba) + 'px';
-      }
-      ajustar();
-      ['resize', 'orientationchange', 'pageshow'].forEach(function (e) {
-        window.addEventListener(e, function () { setTimeout(ajustar, 50); });
-      });
-    })();
-  </script>
   <!-- Android / Chrome: "Instala Marbel Cup" -->
   <div class="mc-inst" id="mc-android" role="dialog" aria-label="Instalar la app">
     <div class="mc-fila">
