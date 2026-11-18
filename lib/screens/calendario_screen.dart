@@ -114,7 +114,7 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
         const SizedBox(height: 48),
         AnchoMax(
           child: TituloSeccion(
-            etiqueta: datos.torneo?.nombre ?? 'IV Torneo Navideño',
+            etiqueta: datos.torneo?.nombre ?? 'Torneo',
             titulo: 'Calendario',
             tamano: 80,
             subtitulo: conHorario ? 'Fechas, categorías y niveles por sede. Toca un nivel para ver solo sus categorías.' : null,
@@ -210,19 +210,18 @@ class _CalendarioScreenState extends State<CalendarioScreen> {
             if (_dia >= 0 && _dia < _dias.length)
               Text(diaLargo(_dias[_dia]), style: const TextStyle(color: MarbelColors.apagado, fontSize: 13)),
             const SizedBox(height: 10),
-            _listaPartidos(context),
-            const SizedBox(height: 18),
-            if ((datos.proyecto?.horario ?? const []).isNotEmpty)
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              title: Text('QUÉ SE JUEGA EN CADA SEDE', style: MarbelText.etiqueta()),
-              children: [
-                for (final d in datos.proyecto?.horario ?? const <DiaHorario>[]) ...[
-                  RejillaDia(dia: d, nivel: _nivel),
-                  const SizedBox(height: 12),
-                ],
+            // Qué se juega ese día en cada sede (como en el ordenador), a la vista
+            for (final d in datos.proyecto?.horario ?? const <DiaHorario>[])
+              if (_dia >= 0 && _dia < _dias.length && soloDia(d.dia) == _dias[_dia]) ...[
+                RejillaDia(dia: d, nivel: _nivel),
+                const SizedBox(height: 6),
+                const Text('Todo el día = la categoría juega en dos sedes a la vez.',
+                    style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
+                const SizedBox(height: 18),
+                Text('PARTIDOS', style: MarbelText.etiqueta(color: MarbelColors.apagado)),
+                const SizedBox(height: 8),
               ],
-            ),
+            _listaPartidos(context),
           ],
         );
     }
@@ -380,9 +379,9 @@ class RejillaDia extends StatelessWidget {
   Widget build(BuildContext context) {
     final ancho = esAncho(context);
     final sedes = datos.sedesTorneo;
-    final nombres = sedes.isEmpty
-        ? const ['Albatera', 'Granja de Rocamora', 'Rafal', 'Bigastro']
-        : sedes.map((s) => s.nombre).toList();
+    // Una columna por sede del torneo (las que tenga: 1, 4...)
+    final n = sedes.isNotEmpty ? sedes.length : dia.sedes.length;
+    String nombre(int i) => i < sedes.length ? (ancho ? sedes[i].nombre : sedes[i].corto) : 'Sede ${i + 1}';
     final alto = ancho ? 84.0 : 70.0;
 
     Widget bloque(Bloque b, double h) {
@@ -453,12 +452,12 @@ class RejillaDia extends StatelessWidget {
         Row(
           children: [
             SizedBox(width: ancho ? 80 : 54),
-            for (var i = 0; i < 4; i++)
+            for (var i = 0; i < n; i++)
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
-                    (ancho ? nombres[i] : sedes.isEmpty ? nombres[i] : sedes[i].corto).toUpperCase(),
+                    nombre(i).toUpperCase(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: MarbelText.etiqueta(color: MarbelColors.texto2, size: ancho ? 14 : 11),
@@ -479,7 +478,7 @@ class RejillaDia extends StatelessWidget {
                 SizedBox(height: alto, child: Center(child: Text('Tarde', style: _franja(ancho)))),
               ]),
             ),
-            for (var i = 0; i < 4; i++)
+            for (var i = 0; i < n; i++)
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
