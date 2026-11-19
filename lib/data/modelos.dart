@@ -132,13 +132,30 @@ class Equipo {
   Equipo.fromMap(Map<String, dynamic> m)
       : id = m['id'] as String,
         nombre = m['nombre'] as String,
+        nombreBase = _s(m['nombre_base']) ?? m['nombre'] as String,
+        letra = _s(m['letra']),
+        clubId = _s(m['club_id']),
         localidad = _s(m['localidad']),
         escudoUrl = _s(m['escudo_url']);
 
   final String id;
+
+  /// Nombre completo, con la letra si la tiene: «Granja de Rocamora CF B».
   final String nombre;
+
+  /// Nombre del club, sin letra: «Granja de Rocamora CF».
+  final String nombreBase;
+
+  /// B, C... si el club tiene más de un equipo.
+  final String? letra;
+
+  /// Si es otro equipo de un club (B, C...), el club al que pertenece.
+  final String? clubId;
   final String? localidad;
   final String? escudoUrl;
+
+  /// Es el club (y no otro equipo suyo).
+  bool get esClub => clubId == null;
 
   String get iniciales {
     final p = nombre
@@ -147,7 +164,8 @@ class Equipo {
         .where((w) => w.length > 2)
         .toList();
     if (p.isEmpty) return nombre.substring(0, 1);
-    return p.take(2).map((w) => w[0].toUpperCase()).join();
+    final ini = p.take(2).map((w) => w[0].toUpperCase()).join();
+    return letra == null ? ini : '$ini $letra';
   }
 }
 

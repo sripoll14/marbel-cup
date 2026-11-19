@@ -59,6 +59,110 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
           if (t.id != datos.torneo?.id && datos.inscritosEn(t).contains(equipoId)) t,
       ];
 
+  /// El club y todos sus equipos (B, C...).
+  List<Equipo> _equiposDe(Equipo club) =>
+      datos.equipos.where((x) => x.id == club.id || x.clubId == club.id).toList();
+
+  /// La primera letra libre del club: B si no tiene ninguna, luego C, D...
+  String _letraLibre(Equipo club) {
+    final usadas = {for (final x in _equiposDe(club)) x.letra};
+    for (final l in 'BCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')) {
+      if (!usadas.contains(l)) return l;
+    }
+    return 'Z';
+  }
+
+  /// Pide una letra (B, C...). Vacía = sin letra. null = cancelado.
+  Future<String?> _pedirLetra(String titulo, String explicacion, String inicial, {bool permiteVacia = true}) async {
+    final c = TextEditingController(text: inicial);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        backgroundColor: MarbelColors.tarjeta,
+        title: Text(titulo),
+        content: SizedBox(
+          width: 380,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(explicacion, style: const TextStyle(color: MarbelColors.texto2)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: c,
+              autofocus: true,
+              maxLength: 2,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(labelText: permiteVacia ? 'Letra (vacía = sin letra)' : 'Letra'),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('GUARDAR')),
+        ],
+      ),
+    );
+    if (ok != true) return null;
+    final l = c.text.trim().toUpperCase();
+    if (l.isNotEmpty && !RegExp(r'^[A-Z]{1,2}$').hasMatch(l)) {
+      if (mounted) avisar(context, 'La letra tiene que ser una o dos letras, sin números ni espacios (ej.: B).', error: true);
+      return null;
+    }
+    if (l.isEmpty && !permiteVacia) return null;
+    return l;
+  }
+
+  /// Otro equipo del mismo club (B, C...): mismo nombre, escudo y localidad.
+  Future<void> _otroEquipo(Equipo club) async {
+    final l = await _pedirLetra(
+      'Otro equipo de ${club.nombreBase}',
+      'Saldrá como «${club.nombreBase} B», «… C»... con el mismo escudo y localidad. '
+          'Luego se inscribe en su liga como cualquier equipo.',
+      _letraLibre(club),
+      permiteVacia: false,
+    );
+    if (l == null || !mounted) return;
+    if (_equiposDe(club).any((x) => x.letra == l)) {
+      avisar(context, '${club.nombreBase} ya tiene un equipo $l.', error: true);
+      return;
+    }
+    String? nuevo;
+    await ejecutar(context, () async {
+      nuevo = (await db
+          .from('equipos')
+          .insert({'club_id': club.id, 'letra': l, 'nombre': '${club.nombreBase} $l', 'nombre_base': club.nombreBase})
+          .select('id')
+          .single())['id'] as String;
+      await datos.recargar();
+    }, ok: 'Equipo creado');
+    final creado = nuevo == null ? null : datos.equipo(nuevo!);
+    if (creado != null && mounted) {
+      await _apuntar(creado);
+      if (mounted) await _anadirALiga(creado);
+    }
+  }
+
+  /// Poner, cambiar o quitar la letra de un equipo.
+  Future<void> _cambiarLetra(Equipo e) async {
+    final club = e.esClub ? e : datos.equipo(e.clubId!) ?? e;
+    final l = await _pedirLetra(
+      'Letra de ${e.nombre}',
+      e.esClub
+          ? 'Si el club tiene varios equipos, ponle la suya (ej.: B). Sin letra sale solo «${e.nombreBase}».'
+          : 'La letra de este equipo de ${club.nombreBase}.',
+      e.letra ?? '',
+      permiteVacia: e.esClub,
+    );
+    if (l == null || !mounted) return;
+    if (_equiposDe(club).any((x) => x.id != e.id && (x.letra ?? '') == l)) {
+      avisar(context, l.isEmpty ? '${club.nombreBase} ya tiene un equipo sin letra.' : '${club.nombreBase} ya tiene un equipo $l.',
+          error: true);
+      return;
+    }
+    await ejecutar(context, () async {
+      await db.from('equipos').update({'letra': l.isEmpty ? null : l}).eq('id', e.id);
+      await datos.recargar();
+    }, ok: 'Letra guardada');
+  }
+
   /// Apunta un club al torneo elegido, aunque todavía no se sepa su liga.
   Future<void> _apuntar(Equipo e) async {
     final t = datos.torneo;
@@ -94,19 +198,24 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
   }
 
   Future<void> _editar([Equipo? e]) async {
-    final nombre = TextEditingController(text: e?.nombre ?? '');
+    final nombre = TextEditingController(text: e?.nombreBase ?? '');
     final localidad = TextEditingController(text: e?.localidad ?? '');
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: MarbelColors.tarjeta,
-        title: Text(e == null ? 'Nuevo equipo' : 'Editar equipo'),
+        title: Text(e == null ? 'Nuevo club' : 'Editar club'),
         content: SizedBox(
           width: 400,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: nombre, decoration: const InputDecoration(labelText: 'Nombre del club')),
             const SizedBox(height: 10),
             TextField(controller: localidad, decoration: const InputDecoration(labelText: 'Localidad (ej.: Elche, Alicante)')),
+            if (e != null && _equiposDe(e).length > 1) ...[
+              const SizedBox(height: 10),
+              const Text('Los cambios pasan también a sus otros equipos (B, C...).',
+                  style: TextStyle(color: MarbelColors.apagado, fontSize: 12)),
+            ],
           ]),
         ),
         actions: [
@@ -116,7 +225,11 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
       ),
     );
     if (ok != true || nombre.text.trim().isEmpty || !mounted) return;
-    final fila = {'nombre': nombre.text.trim(), 'localidad': localidad.text.trim().isEmpty ? null : localidad.text.trim()};
+    final fila = {
+      'nombre': nombre.text.trim(),
+      'nombre_base': nombre.text.trim(),
+      'localidad': localidad.text.trim().isEmpty ? null : localidad.text.trim(),
+    };
     String? nuevo;
     await ejecutar(context, () async {
       if (e == null) {
@@ -254,7 +367,8 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
         'Aquí ves los de ${t?.nombre ?? 'el torneo elegido arriba'}. '
         'Para apuntar a uno que ya existe (por ejemplo, de otro torneo), búscalo en «Sin inscribir». '
         'Si aún no sabes su liga, apúntalo al torneo y ya le pondrás la liga. '
-        'Un mismo club puede jugar en varias categorías: inscríbelo en cada liga.',
+        'Un mismo club puede jugar en varias categorías: inscríbelo en cada liga. '
+        'Si un club tiene dos equipos en la misma categoría, en su menú ⋮ usa «Añadir otro equipo del club (B, C…)».',
         style: const TextStyle(color: MarbelColors.apagado),
       ),
       const SizedBox(height: 12),
@@ -284,12 +398,12 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
             onChanged: (v) => setState(() => _buscar = v.trim().toLowerCase()),
           ),
         ),
-        BotonCian('Nuevo equipo', icono: Icons.add_rounded, onTap: () => _editar()),
+        BotonCian('Nuevo club', icono: Icons.add_rounded, onTap: () => _editar()),
       ]),
       const SizedBox(height: 16),
       if (lista.isEmpty)
         EstadoVacio(switch (_ver) {
-          _Ver.inscritos => 'Todavía no hay clubes inscritos en este torneo. Búscalos en «Sin inscribir» o crea uno con «Nuevo equipo».',
+          _Ver.inscritos => 'Todavía no hay clubes inscritos en este torneo. Búscalos en «Sin inscribir» o crea uno con «Nuevo club».',
           _Ver.sinInscribir => 'Todos los clubes están inscritos en este torneo.',
           _Ver.todos => 'No hay ningún club con ese nombre.',
         }),
@@ -303,6 +417,12 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(e.nombre, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  if (!e.esClub)
+                    Text('Otro equipo de ${e.nombreBase} (mismo escudo y localidad)',
+                        style: const TextStyle(color: MarbelColors.cian, fontSize: 12)),
+                  if (e.esClub && _equiposDe(e).length > 1)
+                    Text('El club tiene ${_equiposDe(e).length} equipos: ${_equiposDe(e).map((x) => x.letra ?? 'sin letra').join(', ')}',
+                        style: const TextStyle(color: MarbelColors.cian, fontSize: 12)),
                   if (e.localidad != null) Text(e.localidad!, style: const TextStyle(color: MarbelColors.apagado)),
                   if (_otrosTorneos(e.id).isNotEmpty)
                     Text('También en: ${_otrosTorneos(e.id).map((x) => x.nombre).join(', ')}',
@@ -314,19 +434,31 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
                 onSelected: (v) async {
                   switch (v) {
                     case 'editar':
-                      await _editar(e);
+                      await _editar(e.esClub ? e : (datos.equipo(e.clubId!) ?? e));
+                    case 'otro':
+                      await _otroEquipo(e);
+                    case 'letra':
+                      await _cambiarLetra(e);
                     case 'escudo':
                       await _escudo(e);
                     case 'quitar':
                       await _quitarDelTorneo(e);
                     case 'borrar':
-                      if (datos.todosPartidos.any((p) => p.localId == e.id || p.visitanteId == e.id)) {
-                        avisar(context, 'Tiene partidos en el calendario. Bórralos antes en «Calendario y sedes».', error: true);
+                      // Si es el club, se borran también sus otros equipos (B, C...)
+                      final todos = e.esClub ? _equiposDe(e) : [e];
+                      final ids = {for (final x in todos) x.id};
+                      if (datos.todosPartidos.any((p) => ids.contains(p.localId) || ids.contains(p.visitanteId))) {
+                        avisar(context,
+                            todos.length > 1
+                                ? 'El club o alguno de sus equipos tiene partidos en el calendario. Bórralos antes en «Calendario y sedes».'
+                                : 'Tiene partidos en el calendario. Bórralos antes en «Calendario y sedes».',
+                            error: true);
                         return;
                       }
                       if (await confirmar(context, '¿Borrar ${e.nombre}?',
-                              'Se borrará el club y se quitará de las ligas de todos los torneos. '
-                              'Si solo quieres sacarlo de este torneo, quítalo de sus ligas (la ✕ de cada una). No se puede deshacer.',
+                              '${todos.length > 1 ? 'Se borrarán también sus otros equipos (${todos.where((x) => x.id != e.id).map((x) => x.nombre).join(', ')}). ' : ''}'
+                              'Se quitará de las ligas de todos los torneos. '
+                              'Si solo quieres sacarlo de este torneo, usa «Quitar de este torneo». No se puede deshacer.',
                               boton: 'Borrar') &&
                           context.mounted) {
                         await ejecutar(context, () async {
@@ -337,8 +469,10 @@ class _SeccionEquiposState extends State<SeccionEquipos> {
                   }
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'editar', child: Text('Editar nombre y localidad')),
-                  const PopupMenuItem(value: 'escudo', child: Text('Subir escudo')),
+                  PopupMenuItem(value: 'editar', child: Text(e.esClub ? 'Editar nombre y localidad' : 'Editar nombre y localidad (del club)')),
+                  if (e.esClub) const PopupMenuItem(value: 'escudo', child: Text('Subir escudo')),
+                  if (e.esClub) const PopupMenuItem(value: 'otro', child: Text('Añadir otro equipo del club (B, C…)')),
+                  PopupMenuItem(value: 'letra', child: Text(e.letra == null ? 'Ponerle letra (B, C…)' : 'Cambiar la letra')),
                   if (inscritos.contains(e.id))
                     const PopupMenuItem(value: 'quitar', child: Text('Quitar de este torneo')),
                   const PopupMenuItem(value: 'borrar', child: Text('Borrar equipo (de todos los torneos)')),
